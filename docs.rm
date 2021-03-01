@@ -1,0 +1,35 @@
+Must:
+
+- https://ethresear.ch/t/on-chain-scaling-to-potentially-500-tx-sec-through-mass-tx-validation/3477 - Vitalik
+  - Despite this being a ZK focused approach, and only supporting deposit/withdraw/send/receive, it’s nicely laidout as a starting point
+
+- https://vitalik.ca/general/2019/08/28/hybrid_layer_2.html
+
+- Fraud and Data Availability Proofs: https://arxiv.org/pdf/1809.09044.pdf
+
+- An Incomplete Guide to Rollups: https://vitalik.ca/general/2021/01/05/rollup.html
+
+
+Start with these resources
+
+- https://ethresear.ch/t/minimal-viable-merged-consensus/5617 - John Adler
+  - I think this is the first description of the optimistic model
+- https://medium.com/@adlerjohn/the-why-s-of-optimistic-rollup-7c6a22cbb61a - John Adler
+  - This article focuses a bit less on the mechanics, and more on the beneficial properties.
+- https://thebitcoinpodcast.com/hashing-it-out-67/ 
+  - Best actual conversation I found. 
+
+
+About the "OVM" (All by Karl Floersch)
+- The OVM is an optimistic rollup implementation to support general computation in EVM compatible sidechains
+- https://medium.com/plasma-group/ethereum-smart-contracts-in-l2-optimistic-rollup-2c1cef2ec537
+- https://medium.com/plasma-group/introducing-the-ovm-db253287af50
+- https://slideslive.com/38920104/the-optimistic-virtual-machine-an-ovmerview (talk)
+
+About Fuel
+- Fuel is an optimistic rollup implementation specifically focused on scalable payments for ETH and ERC20 tokens
+- https://medium.com/@fuellabs/announcing-the-fuel-v0-open-beta-565a2d340fc3
+
+Things I haven’t read at all:
+- https://ethresear.ch/t/nearly-zero-cost-attack-scenario-on-optimistic-rollup/6336
+- https://vitalik.ca/general/2019/08/28/hybrid_layer_2.html
