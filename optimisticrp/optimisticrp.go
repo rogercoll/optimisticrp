@@ -75,7 +75,7 @@ func (opr *Oprollups) NewOptimisticTx(to, from common.Address, value, gas *big.I
 }
 
 func (opr *Oprollups) AddAccount(addr common.Address) error {
-	acc := Account{Balance: big.NewInt(1e+18), Nonce: 0}
+	acc := Account{Balance: new(big.Int).SetUint64(10e+18), Nonce: 0}
 	err := opr.UpdateAccount(addr, acc)
 	return err
 }
