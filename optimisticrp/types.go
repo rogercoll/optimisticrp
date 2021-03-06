@@ -4,21 +4,21 @@ import (
 	"bytes"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
+	"math/big"
 )
 
 //To, from ID in the AccountsTrie
 type Transaction struct {
-	Value uint64
-	Gas   uint64
-	To    uint32
-	From  uint32
+	Value *big.Int // wei amount
+	Gas   *big.Int // gasLimit
+	To    common.Address
+	From  common.Address
 	Nonce uint64
 }
 
 type Account struct {
-	Addr    common.Address //64-bit
 	Nonce   uint64
-	Balance uint64 //weis
+	Balance *big.Int //weis
 }
 
 func (tx *Transaction) encodeTyped(w *bytes.Buffer) error {
