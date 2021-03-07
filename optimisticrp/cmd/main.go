@@ -40,4 +40,12 @@ func main() {
 	log.Printf("Account Balance: %v", acc1.Balance)
 	acc2, _ := opr.GetAccount(address2)
 	log.Printf("Account Balance: %v", acc2.Balance)
+	opr.SendBatch()
+
+	r, _ := optimisticrp.Encode(opr.StateRoot)
+	log.Println(r)
+	tr, _ := optimisticrp.Encode(opr.NewBatch.Transactions[0])
+	log.Println(tr)
+	tob, _ := optimisticrp.Encode(opr.NewBatch.Transactions[0].To)
+	log.Println(tob)
 }

@@ -5,6 +5,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb/memorydb"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
+	"log"
 	"math/big"
 )
 
@@ -12,7 +13,8 @@ type Oprollups struct {
 	AccountsTrie *trie.Trie
 	StateRoot    common.Hash
 	//ORI Addr => Optimistic Rollups Implementation Smart Contract Address
-	OriAddr string
+	OriAddr  string
+	NewBatch Batch
 }
 
 func New(oriAddr string) (*Oprollups, error) {
@@ -24,7 +26,7 @@ func New(oriAddr string) (*Oprollups, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Oprollups{tr, tr.Hash(), oriAddr}, nil
+	return &Oprollups{tr, tr.Hash(), oriAddr, Batch{}}, nil
 }
 
 func (opr *Oprollups) GetAccount(address common.Address) (Account, error) {
@@ -56,7 +58,7 @@ func (opr *Oprollups) NewOptimisticTx(to, from common.Address, value, gas *big.I
 		return err
 	}
 	fromAcc.Nonce += 1
-	_ = Transaction{
+	tx := Transaction{
 		From:  from,
 		To:    to,
 		Value: value,
@@ -71,6 +73,8 @@ func (opr *Oprollups) NewOptimisticTx(to, from common.Address, value, gas *big.I
 	}
 	err = opr.UpdateAccount(to, toAcc)
 	opr.StateRoot = opr.AccountsTrie.Hash()
+	opr.NewBatch.StateRoot = opr.AccountsTrie.Hash()
+	opr.NewBatch.Transactions = append(opr.NewBatch.Transactions, tx)
 	return nil
 }
 
@@ -80,13 +84,9 @@ func (opr *Oprollups) AddAccount(addr common.Address) error {
 	return err
 }
 
-//TODO: USE merkle tree indexes
-func (opr *Oprollups) getAccountID(addr common.Address) uint32 {
-	/*
-		it := NewIterator(trie.NodeIterator(nil))
-		for it.Next() {
-			found[string(it.Key)] = string(it.Value)
-		}
-	*/
-	return 8
+func (opr *Oprollups) SendBatch() error {
+	result, _ := opr.NewBatch.MarshalBinary()
+	log.Println(result)
+	log.Println(len(result))
+	return nil
 }
