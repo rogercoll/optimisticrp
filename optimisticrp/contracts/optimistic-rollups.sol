@@ -2,17 +2,27 @@
 
 pragma solidity >=0.6.0 <=0.7.3;
 
-import "solidity-rlp/contracts/RLPReader.sol";
+import "./Solidity-RLP/contracts/RLPReader.sol";
 
 contract Optimistic_Rollups {
     
-    bytes32 stateRoot;
+    bytes32 public stateRoot;
+    uint256 public immutable lock_time;
+    uint256 public immutable required_bond;
     address to;
     string stringTest;
     // optional way to attach library functions to these data types.
     using RLPReader for RLPReader.RLPItem;
     using RLPReader for RLPReader.Iterator;
     using RLPReader for bytes;
+
+    constructor(
+        uint256 _lock_time,
+        uint256 _required_bond
+    ) public {
+        lock_time = _lock_time;
+        required_bond = _required_bond;
+    }
     
     // lets assume that rlpBytes is an encoding of [[1, "nested"], 2, 0x<Address>]
     function someFunctionThatTakesAnEncodedItem(bytes memory rlpBytes) public {

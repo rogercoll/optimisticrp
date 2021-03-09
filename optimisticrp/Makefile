@@ -10,8 +10,8 @@ help: ## This help.
 .DEFAULT_GOAL := help
 
 build: ## Build the container
-	solc --abi contracts/* -o contracts/build
-	abigen --abi=contracts/build/Optimistic_Roll_In.abi --pkg=contracts --out=contracts/Contracts.go
+	solc --abi contracts/optimistic-rollups.sol --allow-paths contracts/Solidity-RLP/contracts/* -o contracts/build
+	abigen --abi=contracts/build/Optimistic_Rollups.abi --pkg=contracts --out=contracts/Contracts.go
 
 
 deploy: ## Build the container

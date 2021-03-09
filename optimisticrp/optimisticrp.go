@@ -1,23 +1,37 @@
 package optimisticrp
 
 import (
+	"log"
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/ethdb/memorydb"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
-	"log"
-	"math/big"
+	store "github.com/rogercoll/optimisticrp/contracts"
 )
 
 type Oprollups struct {
 	AccountsTrie *trie.Trie
 	StateRoot    common.Hash
+	TmpStateRoot common.Hash
 	//ORI Addr => Optimistic Rollups Implementation Smart Contract Address
-	OriAddr  string
-	NewBatch Batch
+	OriAddr      common.Address
+	ori_contract *store.Contracts
+	NewBatch     Batch
+	RequiredBond *big.Int
 }
 
-func New(oriAddr string) (*Oprollups, error) {
+func New(oriAddr common.Address, ethClient *ethclient.Client) (*Oprollups, error) {
+	instance, err := store.NewContracts(oriAddr, ethClient)
+	if err != nil {
+		return nil, err
+	}
+	requiredBond, err := instance.RequiredBond(nil)
+	if err != nil {
+		return nil, err
+	}
 	var (
 		diskdb = memorydb.New()
 		triedb = trie.NewDatabase(diskdb)
@@ -26,7 +40,11 @@ func New(oriAddr string) (*Oprollups, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Oprollups{tr, tr.Hash(), oriAddr, Batch{}}, nil
+	onChainStateRoot, err := instance.StateRoot(nil)
+	if err != nil {
+		return nil, err
+	}
+	return &Oprollups{tr, onChainStateRoot, tr.Hash(), oriAddr, instance, Batch{}, requiredBond}, nil
 }
 
 func (opr *Oprollups) GetAccount(address common.Address) (Account, error) {
@@ -44,6 +62,7 @@ func (opr *Oprollups) UpdateAccount(address common.Address, acc Account) error {
 		return err
 	}
 	opr.AccountsTrie.Update(address.Bytes(), val)
+	opr.TmpStateRoot = opr.AccountsTrie.Hash()
 	return nil
 }
 
