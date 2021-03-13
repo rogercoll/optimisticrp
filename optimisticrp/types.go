@@ -2,20 +2,41 @@ package optimisticrp
 
 import (
 	"bytes"
+	"math/big"
+
+	"encoding/binary"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/rlp"
-	"math/big"
 )
 
 const MAX_TRANSACTIONS_BATCH = 10
 
+type Optimistic interface {
+	GetAccount(common.Address) (Account, error)
+	UpdateAccount(common.Address, Account) common.Hash
+}
+type Signer interface {
+	// SignatureValues returns the raw R, S, V values corresponding to the
+	// given signature.
+	SignatureValues(sig []byte) (r, s, v *big.Int, err error)
+	// Hash returns 'signature hash', i.e. the transaction hash that is signed by the
+	// private key. This hash does not uniquely identify the transaction.
+	Hash(tx *Transaction) common.Hash
+}
+
+type Aggregator interface {
+	ReceiveTransaction(tx Transaction) error
+	ActualNonce(acc common.Address) uint64
+}
+
 //To, from ID in the AccountsTrie
 type Transaction struct {
-	Value *big.Int // wei amount
-	Gas   *big.Int // gasLimit
-	To    common.Address
-	From  common.Address
-	Nonce uint64
+	Value   *big.Int // wei amount
+	Gas     *big.Int // gasLimit
+	To      common.Address
+	From    common.Address
+	Nonce   uint64
+	V, R, S *big.Int // signature values
 }
 
 type Account struct {
@@ -24,8 +45,9 @@ type Account struct {
 }
 
 type Batch struct {
-	StateRoot    common.Hash
-	Transactions []Transaction
+	PrevStateRoot common.Hash
+	StateRoot     common.Hash
+	Transactions  []Transaction
 }
 
 func (tx *Transaction) encodeTyped(w *bytes.Buffer) error {
@@ -48,4 +70,55 @@ func (tx *Transaction) MarshalBinary() ([]byte, error) {
 	var buf bytes.Buffer
 	err := tx.encodeTyped(&buf)
 	return buf.Bytes(), err
+}
+
+func (account *Account) MarshalBinary() []byte {
+	//Uint64 will occupy a byte array of length 8
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, account.Nonce)
+	//big.Int.Bytes returns BigEndian array
+	bb := account.Balance.Bytes()
+	return append(b, bb...)
+}
+
+func (account *Account) UnMarshalBinary(abytes []byte) (*Account, error) {
+	b := abytes[:8]
+	buf := bytes.NewReader(b)
+	err := binary.Read(buf, binary.BigEndian, &account.Nonce)
+	if err != nil {
+		return nil, err
+	}
+	i := new(big.Int)
+	i.SetBytes(abytes[8:])
+	account.Balance = i
+	return account, nil
+}
+
+func (tx *Transaction) setSignatureValues(v, r, s *big.Int) {
+	tx.V = v
+	tx.R = r
+	tx.S = s
+}
+
+func (tx *Transaction) copy() *Transaction {
+	return &Transaction{
+		Value: tx.Value,
+		Gas:   tx.Gas,
+		To:    tx.To,
+		From:  tx.From,
+		Nonce: tx.Nonce,
+		V:     new(big.Int),
+		R:     new(big.Int),
+		S:     new(big.Int),
+	}
+}
+
+func (tx *Transaction) WithSignature(signer Signer, sig []byte) (*Transaction, error) {
+	r, s, v, err := signer.SignatureValues(sig)
+	if err != nil {
+		return nil, err
+	}
+	signedTx := tx.copy()
+	signedTx.setSignatureValues(v, r, s)
+	return signedTx, nil
 }

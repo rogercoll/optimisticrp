@@ -25,7 +25,7 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 	log.Println("Connected to the ETH client")
-	opr, err := New(common.HexToAddress("0x98458AcD61521d93E6f708Aeb868d5DE8F4A5337"), client)
+	opr, err := New(common.HexToAddress("0xaf9b3894c68c73c0D5e7a2172B76E513b0008858"), client, "ff10aa6af851c1b49b7d3a94611d7823adbcfae76e153fc2757b4108a1dc402d")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -58,10 +58,9 @@ func TestRequiredBond(t *testing.T) {
 }
 
 func TestStateRoot(t *testing.T) {
-	log.Println(testOpr.StateRoot)
 	got := testOpr.TmpStateRoot
-	if got != common.HexToHash("0x781fc3bf01fa081e808611a5832f8a8ef6fef374a2be29cdbdaf9d26aa53310e") {
-		t.Errorf("StateRoot = %d; want 0x781fc3bf01fa081e808611a5832f8a8ef6fef374a2be29cdbdaf9d26aa53310e", got)
+	if got != common.HexToHash("0x916f42eb26bd1999b4b68b3918332582bed474c337deeb8bf6b2699272c3b1d0") {
+		t.Errorf("StateRoot = %d; want 0x916f42eb26bd1999b4b68b3918332582bed474c337deeb8bf6b2699272c3b1d0", got)
 	}
 	err := testOpr.AddAccount(address5)
 	if err != nil {
@@ -71,4 +70,40 @@ func TestStateRoot(t *testing.T) {
 	if got2 == got {
 		t.Errorf("TrieHash after adding one account must be different!")
 	}
+}
+
+func TestSendBatch(t *testing.T) {
+	err := testOpr.NewOptimisticTx(address1, address2, big.NewInt(1e+18), big.NewInt(5e+10))
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = testOpr.NewOptimisticTx(address2, address2, big.NewInt(3e+18), big.NewInt(5e+10))
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = testOpr.NewOptimisticTx(address4, address2, big.NewInt(1e+18), big.NewInt(5e+10))
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = testOpr.NewOptimisticTx(address5, address2, big.NewInt(1e+18), big.NewInt(5e+10))
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = testOpr.NewOptimisticTx(address2, address1, big.NewInt(1e+18), big.NewInt(5e+10))
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = testOpr.NewOptimisticTx(address1, address5, big.NewInt(1e+18), big.NewInt(5e+10))
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = testOpr.NewOptimisticTx(address4, address1, big.NewInt(1e+18), big.NewInt(5e+10))
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = testOpr.SendBatch()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 }
