@@ -34,9 +34,20 @@ type Oprollups struct {
 	RequiredBond *big.Int
 }
 
+func NewTrie(triedb *trie.Database) (*OptimisticTrie, error) {
+	tr, err := trie.New(common.Hash{}, triedb)
+	if err != nil {
+		return nil, err
+	}
+	return &OptimisticTrie{tr}, nil
+}
+
 func (ot *OptimisticTrie) GetAccount(address common.Address) (Account, error) {
 	fBytes := ot.Get(address.Bytes())
 	var acc Account
+	if len(fBytes) == 0 {
+		return acc, &AccountNotFound{}
+	}
 	_, err := acc.UnMarshalBinary(fBytes)
 	if err != nil {
 		return Account{}, err

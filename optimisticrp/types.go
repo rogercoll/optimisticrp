@@ -5,11 +5,19 @@ import (
 	"math/big"
 
 	"encoding/binary"
+
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
 const MAX_TRANSACTIONS_BATCH = 10
+
+type AccountNotFound struct{}
+
+func (e AccountNotFound) Error() string {
+	return "The Account was not found in the Trie"
+}
 
 type Optimistic interface {
 	GetAccount(common.Address) (Account, error)
@@ -27,6 +35,16 @@ type Signer interface {
 type Aggregator interface {
 	ReceiveTransaction(tx Transaction) error
 	ActualNonce(acc common.Address) uint64
+}
+
+type OptimisticSContract interface {
+	GetStateRoot() (common.Hash, error)
+	GetAllTransactions(chan<- Transaction) error
+	NewStateRoot()
+	FraudProof()
+	Bond()
+	Withdraw()
+	Client() *ethclient.Client
 }
 
 //To, from ID in the AccountsTrie
