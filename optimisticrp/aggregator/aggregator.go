@@ -42,6 +42,10 @@ func (ag *AggregatorNode) sendBatch() error {
 		return err
 	}
 	_, err = ag.ethContract.NewBatch(b, txOpts)
+	if err != nil {
+		return err
+	}
+	ag.transactions = nil
 	return err
 }
 
