@@ -61,6 +61,10 @@ func (ot *OptimisticTrie) UpdateAccount(address common.Address, acc Account) com
 	return ot.Hash()
 }
 
+func (ot *OptimisticTrie) StateRoot() common.Hash {
+	return ot.Hash()
+}
+
 func New(oriAddr common.Address, ethClient *ethclient.Client, hexPrivKey string) (*Oprollups, error) {
 	instance, err := store.NewContracts(oriAddr, ethClient)
 	if err != nil {

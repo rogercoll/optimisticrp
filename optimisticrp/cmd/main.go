@@ -33,7 +33,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	myaggregator := aggregator.New(tr, mybridge)
+	myaggregator := aggregator.New(tr, mybridge, nil)
 	log.Println(myaggregator.StateRoot())
 	/*
 		opr, err := optimisticrp.New("hello")

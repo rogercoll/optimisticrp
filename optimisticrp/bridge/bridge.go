@@ -1,15 +1,18 @@
 package bridge
 
 import (
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/rogercoll/optimisticrp"
 	store "github.com/rogercoll/optimisticrp/contracts"
 )
 
 type Bridge struct {
-	ori_contract *store.Contracts
-	client       *ethclient.Client
+	oriContract *store.Contracts
+	oriAddr     common.Address
+	client      *ethclient.Client
 }
 
 func New(oriAddr common.Address, ethClient *ethclient.Client) (*Bridge, error) {
@@ -17,7 +20,7 @@ func New(oriAddr common.Address, ethClient *ethclient.Client) (*Bridge, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Bridge{instance, ethClient}, nil
+	return &Bridge{instance, oriAddr, ethClient}, nil
 }
 
 func (b *Bridge) Client() *ethclient.Client {
@@ -25,16 +28,29 @@ func (b *Bridge) Client() *ethclient.Client {
 }
 
 func (b *Bridge) GetStateRoot() (common.Hash, error) {
-	onChainStateRoot, err := b.ori_contract.StateRoot(nil)
+	onChainStateRoot, err := b.oriContract.StateRoot(nil)
 	if err != nil {
 		return common.Hash{}, err
 	}
 	return onChainStateRoot, nil
 }
 
-func (b *Bridge) NewStateRoot() {
-
+func (b *Bridge) NewBatch(batch optimisticrp.Batch, txOpts *bind.TransactOpts) (*types.Transaction, error) {
+	result, err := batch.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	txresult, err := b.oriContract.NewBatch(txOpts, result)
+	if err != nil {
+		return nil, err
+	}
+	return txresult, nil
 }
+
+func (b *Bridge) OriAddr() common.Address {
+	return b.oriAddr
+}
+
 func (b *Bridge) FraudProof() {
 
 }

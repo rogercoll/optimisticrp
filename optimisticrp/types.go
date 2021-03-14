@@ -6,7 +6,9 @@ import (
 
 	"encoding/binary"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
 )
@@ -20,6 +22,7 @@ func (e AccountNotFound) Error() string {
 }
 
 type Optimistic interface {
+	StateRoot() common.Hash
 	GetAccount(common.Address) (Account, error)
 	UpdateAccount(common.Address, Account) common.Hash
 }
@@ -38,9 +41,10 @@ type Aggregator interface {
 }
 
 type OptimisticSContract interface {
+	OriAddr() common.Address
 	GetStateRoot() (common.Hash, error)
 	GetAllTransactions(chan<- Transaction) error
-	NewStateRoot()
+	NewBatch(Batch, *bind.TransactOpts) (*types.Transaction, error)
 	FraudProof()
 	Bond()
 	Withdraw()
