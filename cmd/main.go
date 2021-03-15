@@ -18,7 +18,7 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Println("Connected to the ETH client")
-	mybridge, err := bridge.New(common.HexToAddress("0xaf9b3894c68c73c0D5e7a2172B76E513b0008858"), client)
+	mybridge, err := bridge.New(common.HexToAddress("0x801C84a6F45ADf48b92Ef651202Abd1Bd0a30856"), client)
 	if err != nil {
 		log.Fatal(err)
 	}

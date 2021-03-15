@@ -2,15 +2,16 @@
 
 pragma solidity >=0.6.0 <=0.7.3;
 
-import "./Solidity-RLP/contracts/RLPReader.sol";
+import "./RLPReader.sol";
 
 contract Optimistic_Rollups {
     
     bytes32 public stateRoot;
     uint256 public immutable lock_time;
     uint256 public immutable required_bond;
-    address to;
-    string stringTest;
+    mapping(address => mapping(bytes32 => uint256)) private last_deposits;
+    event New_Deposit(address user, bytes32 stateRoot, uint256 value);
+
     // optional way to attach library functions to these data types.
     using RLPReader for RLPReader.RLPItem;
     using RLPReader for RLPReader.Iterator;
@@ -25,6 +26,11 @@ contract Optimistic_Rollups {
         required_bond = _required_bond;
     }
     
+    function deposit() external payable {
+        last_deposits[msg.sender][stateRoot] += msg.value;
+        emit New_Deposit(msg.sender, stateRoot, msg.value);
+    }
+    
     
     //[248, 95, 160, 48, 90, 96, 180, 15, 169, 0, 12, 30, 160, 135, 133, 84, 61, 18, 113, 22, 62, 245, 86, 20, 148, 103, 136, 32, 124, 139, 204, 83, 60, 79, 110, 248, 60, 248, 58, 136, 13, 224, 182, 179, 167, 100, 0, 0, 133, 11, 164, 59, 116, 0, 148, 139, 80, 60, 161, 190, 245, 90, 144, 66, 118, 19, 143, 46, 166, 9, 6, 210, 197, 135, 129, 148, 4, 140, 130, 254, 44, 133, 149, 108, 242, 135, 47, 190, 50, 190, 74, 208, 109, 227, 219, 30, 1]
     function newBatch(bytes calldata _batch) external returns (string memory) {
@@ -36,7 +42,7 @@ contract Optimistic_Rollups {
         stateRoot = abi.decode(_newstateRoot.toBytes(), (bytes32));
         RLPReader.RLPItem[] memory transactions = ls[1].toList();
         RLPReader.RLPItem[] memory tx_data = transactions[2].toList();
-        to = tx_data[2].toAddress();
+        //to = tx_data[2].toAddress();
     }
     
     //[160,48,90,96,180,15,169,0,12,30,160,135,133,84,61,18,113,22,62,245,86,20,148,103,136,32,124,139,204,83,60,79,110]
@@ -53,15 +59,6 @@ contract Optimistic_Rollups {
         return stateRoot;
     }
     
-    function getToAddress() public view returns (address){
-        return to;
-    }
-    
-    
-    function getMessage() public view returns (string memory){
-                    return stringTest;
-    }
-    
-    
 
 }
+
