@@ -36,6 +36,8 @@ type Signer interface {
 }
 
 type Aggregator interface {
+	//Synced returns if the Aggregator is syncronized with the on-chain data or not
+	Synced() (bool, error)
 	ReceiveTransaction(tx Transaction) error
 	ActualNonce(acc common.Address) uint64
 }
@@ -86,6 +88,12 @@ func (bt *Batch) MarshalBinary() ([]byte, error) {
 	var buf bytes.Buffer
 	err := bt.encodeTyped(&buf)
 	return buf.Bytes(), err
+}
+
+func UnMarshalBatch(b []byte) (*Batch, error) {
+	var data Batch
+	err := rlp.DecodeBytes(b, &data)
+	return &data, err
 }
 
 func (tx *Transaction) MarshalBinary() ([]byte, error) {

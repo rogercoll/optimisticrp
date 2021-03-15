@@ -27,7 +27,7 @@ var (
 )
 
 // ContractsABI is the input ABI used to generate the binding from.
-const ContractsABI = "[{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_lock_time\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_required_bond\",\"type\":\"uint256\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"_example\",\"type\":\"bytes\"}],\"name\":\"calldataTest\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getMessage\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getStateRoot\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getToAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"lock_time\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"_batch\",\"type\":\"bytes\"}],\"name\":\"newBatch\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"_hash\",\"type\":\"bytes\"}],\"name\":\"readHash\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"_hash\",\"type\":\"bytes\"}],\"name\":\"readHashRLP\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"required_bond\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"rlpBytes\",\"type\":\"bytes\"}],\"name\":\"someFunctionThatTakesAnEncodedItem\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"stateRoot\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"rlpBytes\",\"type\":\"bytes\"}],\"name\":\"testRLP\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
+const ContractsABI = "[{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_lock_time\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_required_bond\",\"type\":\"uint256\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"getMessage\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getStateRoot\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getToAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"lock_time\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"_batch\",\"type\":\"bytes\"}],\"name\":\"newBatch\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"_hash\",\"type\":\"bytes\"}],\"name\":\"readHash\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"_hash\",\"type\":\"bytes\"}],\"name\":\"readHashRLP\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"required_bond\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"stateRoot\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]"
 
 // Contracts is an auto generated Go binding around an Ethereum contract.
 type Contracts struct {
@@ -357,27 +357,6 @@ func (_Contracts *ContractsCallerSession) StateRoot() ([32]byte, error) {
 	return _Contracts.Contract.StateRoot(&_Contracts.CallOpts)
 }
 
-// CalldataTest is a paid mutator transaction binding the contract method 0x14e369e8.
-//
-// Solidity: function calldataTest(bytes _example) returns(string)
-func (_Contracts *ContractsTransactor) CalldataTest(opts *bind.TransactOpts, _example []byte) (*types.Transaction, error) {
-	return _Contracts.contract.Transact(opts, "calldataTest", _example)
-}
-
-// CalldataTest is a paid mutator transaction binding the contract method 0x14e369e8.
-//
-// Solidity: function calldataTest(bytes _example) returns(string)
-func (_Contracts *ContractsSession) CalldataTest(_example []byte) (*types.Transaction, error) {
-	return _Contracts.Contract.CalldataTest(&_Contracts.TransactOpts, _example)
-}
-
-// CalldataTest is a paid mutator transaction binding the contract method 0x14e369e8.
-//
-// Solidity: function calldataTest(bytes _example) returns(string)
-func (_Contracts *ContractsTransactorSession) CalldataTest(_example []byte) (*types.Transaction, error) {
-	return _Contracts.Contract.CalldataTest(&_Contracts.TransactOpts, _example)
-}
-
 // NewBatch is a paid mutator transaction binding the contract method 0xdbcf9bd2.
 //
 // Solidity: function newBatch(bytes _batch) returns(string)
@@ -439,46 +418,4 @@ func (_Contracts *ContractsSession) ReadHashRLP(_hash []byte) (*types.Transactio
 // Solidity: function readHashRLP(bytes _hash) returns(string)
 func (_Contracts *ContractsTransactorSession) ReadHashRLP(_hash []byte) (*types.Transaction, error) {
 	return _Contracts.Contract.ReadHashRLP(&_Contracts.TransactOpts, _hash)
-}
-
-// SomeFunctionThatTakesAnEncodedItem is a paid mutator transaction binding the contract method 0x6917f1fd.
-//
-// Solidity: function someFunctionThatTakesAnEncodedItem(bytes rlpBytes) returns()
-func (_Contracts *ContractsTransactor) SomeFunctionThatTakesAnEncodedItem(opts *bind.TransactOpts, rlpBytes []byte) (*types.Transaction, error) {
-	return _Contracts.contract.Transact(opts, "someFunctionThatTakesAnEncodedItem", rlpBytes)
-}
-
-// SomeFunctionThatTakesAnEncodedItem is a paid mutator transaction binding the contract method 0x6917f1fd.
-//
-// Solidity: function someFunctionThatTakesAnEncodedItem(bytes rlpBytes) returns()
-func (_Contracts *ContractsSession) SomeFunctionThatTakesAnEncodedItem(rlpBytes []byte) (*types.Transaction, error) {
-	return _Contracts.Contract.SomeFunctionThatTakesAnEncodedItem(&_Contracts.TransactOpts, rlpBytes)
-}
-
-// SomeFunctionThatTakesAnEncodedItem is a paid mutator transaction binding the contract method 0x6917f1fd.
-//
-// Solidity: function someFunctionThatTakesAnEncodedItem(bytes rlpBytes) returns()
-func (_Contracts *ContractsTransactorSession) SomeFunctionThatTakesAnEncodedItem(rlpBytes []byte) (*types.Transaction, error) {
-	return _Contracts.Contract.SomeFunctionThatTakesAnEncodedItem(&_Contracts.TransactOpts, rlpBytes)
-}
-
-// TestRLP is a paid mutator transaction binding the contract method 0x6aa9ad6e.
-//
-// Solidity: function testRLP(bytes rlpBytes) returns()
-func (_Contracts *ContractsTransactor) TestRLP(opts *bind.TransactOpts, rlpBytes []byte) (*types.Transaction, error) {
-	return _Contracts.contract.Transact(opts, "testRLP", rlpBytes)
-}
-
-// TestRLP is a paid mutator transaction binding the contract method 0x6aa9ad6e.
-//
-// Solidity: function testRLP(bytes rlpBytes) returns()
-func (_Contracts *ContractsSession) TestRLP(rlpBytes []byte) (*types.Transaction, error) {
-	return _Contracts.Contract.TestRLP(&_Contracts.TransactOpts, rlpBytes)
-}
-
-// TestRLP is a paid mutator transaction binding the contract method 0x6aa9ad6e.
-//
-// Solidity: function testRLP(bytes rlpBytes) returns()
-func (_Contracts *ContractsTransactorSession) TestRLP(rlpBytes []byte) (*types.Transaction, error) {
-	return _Contracts.Contract.TestRLP(&_Contracts.TransactOpts, rlpBytes)
 }

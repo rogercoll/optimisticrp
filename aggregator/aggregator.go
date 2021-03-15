@@ -2,6 +2,7 @@ package aggregator
 
 import (
 	"crypto/ecdsa"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -22,6 +23,25 @@ func New(newAccountsTrie optimisticrp.Optimistic, newEthContract optimisticrp.Op
 		ethContract:  newEthContract,
 		privKey:      privateKey,
 	}
+}
+
+//Sync with on-chain smart contract
+func (ag *AggregatorNode) Synced() (bool, error) {
+	onChainStateRoot, err := ag.onChainStateRoot()
+	if err != nil {
+		return false, err
+	}
+	if onChainStateRoot == ag.accountsTrie.StateRoot() {
+		return true, nil
+	}
+	stateRoot, err := ag.computeAccountsTrie()
+	if err != nil {
+		return false, err
+	}
+	if stateRoot != onChainStateRoot {
+		return false, fmt.Errorf("Aggregator was not able to compute a valid StateRoot")
+	}
+	return true, nil
 }
 
 //if sendBatch succeeds we should notify all user transactions
@@ -66,13 +86,18 @@ func (ag *AggregatorNode) ReceiveTransaction(tx optimisticrp.Transaction) error 
 }
 
 //Should be private
-func (ag *AggregatorNode) StateRoot() (common.Hash, error) {
+func (ag *AggregatorNode) onChainStateRoot() (common.Hash, error) {
 	return ag.ethContract.GetStateRoot()
 }
 
 func (ag *AggregatorNode) processTx(transaction optimisticrp.Transaction) (common.Hash, error) {
 	fromAcc, err := ag.accountsTrie.GetAccount(transaction.From)
-	if err != nil {
+	//fromAcc should not be added to the trie if destination addr != 0x0
+	switch err.(type) {
+	case *optimisticrp.AccountNotFound:
+		fromAcc = optimisticrp.Account{Balance: new(big.Int).SetUint64(0), Nonce: 0}
+		ag.accountsTrie.UpdateAccount(transaction.To, fromAcc)
+	default:
 		return common.Hash{}, err
 	}
 	toAcc, err := ag.accountsTrie.GetAccount(transaction.To)
