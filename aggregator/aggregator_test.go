@@ -18,7 +18,7 @@ var agg *AggregatorNode
 var addrAccount1 = common.HexToAddress("0x048C82fe2C85956Cf2872FBe32bE4AD06de3Db1E")
 var addrAccount2 = common.HexToAddress("0x9185eAE1c5AD845137AaDf34a955e1D676fE421B")
 var addrAccount3 = common.HexToAddress("0x522fE0423db9de4e8Bb88aF3bF24aBE9B7dBF787")
-var account1 = optimisticrp.Account{Balance: new(big.Int).SetUint64(10e+18), Nonce: 0}
+var account1 = optimisticrp.Account{Balance: new(big.Int).SetUint64(0), Nonce: 0}
 
 type mockBridge struct {
 }
@@ -47,7 +47,7 @@ func (m *mockBridge) GetOnChainData(txChannel chan<- interface{}) error {
 			Value: big.NewInt(1e+18),
 		},
 	}
-	txChannel <- optimisticrp.Deposit{addrAccount1, big.NewInt(0).SetUint64(uint64(5e+18))}
+	txChannel <- optimisticrp.Deposit{addrAccount1, big.NewInt(0).SetUint64(10e+18)}
 	txChannel <- optimisticrp.Batch{Transactions: txs}
 	return nil
 }
