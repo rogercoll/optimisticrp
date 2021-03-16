@@ -71,8 +71,8 @@ func (b *Bridge) Withdraw() {
 
 //Reads all transactions to the smart contracts and computes the whole accounts trie from scratch
 //This implementation is used for local chains, few blocks. In production (main chain) you shall use an ingestion service to get all the transactions of a given address.
-func (b *Bridge) GetAllTransactions(txChannel chan<- optimisticrp.Transaction) error {
-	defer close(txChannel)
+func (b *Bridge) GetOnChainData(dataChannel chan<- interface{}) error {
+	defer close(dataChannel)
 	header, err := b.client.HeaderByNumber(context.Background(), nil)
 	if err != nil {
 		return err
@@ -101,14 +101,19 @@ func (b *Bridge) GetAllTransactions(txChannel chan<- optimisticrp.Transaction) e
 					if err != nil {
 						return err
 					}
-
 					batch, err := optimisticrp.UnMarshalBatch(data[0].([]byte))
 					if err != nil {
 						log.Println("Transaction does not contain a batch, skipping...")
+						continue
 					}
-					for _, txInBatch := range batch.Transactions {
-						txChannel <- txInBatch
+					dataChannel <- batch
+				} else if method.Name == "deposit" {
+					msg, err := tx.AsMessage(types.NewEIP155Signer(tx.ChainId()))
+					if err != nil {
+						log.Fatal(err)
 					}
+					dataChannel <- optimisticrp.Deposit{msg.From(), tx.Value()}
+
 				}
 			}
 		}

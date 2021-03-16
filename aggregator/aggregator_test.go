@@ -33,7 +33,7 @@ func (m *mockBridge) Bond()                   {}
 func (m *mockBridge) Withdraw()               {}
 func (m *mockBridge) OriAddr() common.Address { return common.Address{} }
 
-func (m *mockBridge) GetAllTransactions(txChannel chan<- optimisticrp.Transaction) error {
+func (m *mockBridge) GetOnChainData(txChannel chan<- interface{}) error {
 	defer close(txChannel)
 	txs := []optimisticrp.Transaction{
 		{
@@ -47,9 +47,8 @@ func (m *mockBridge) GetAllTransactions(txChannel chan<- optimisticrp.Transactio
 			Value: big.NewInt(1e+18),
 		},
 	}
-	for _, tx := range txs {
-		txChannel <- tx
-	}
+	txChannel <- optimisticrp.Deposit{addrAccount1, big.NewInt(0).SetUint64(uint64(5e+18))}
+	txChannel <- optimisticrp.Batch{Transactions: txs}
 	return nil
 }
 func TestMain(m *testing.M) {

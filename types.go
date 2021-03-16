@@ -45,12 +45,18 @@ type Aggregator interface {
 type OptimisticSContract interface {
 	OriAddr() common.Address
 	GetStateRoot() (common.Hash, error)
-	GetAllTransactions(chan<- Transaction) error
+	GetOnChainData(chan<- interface{}) error
 	NewBatch(Batch, *bind.TransactOpts) (*types.Transaction, error)
 	FraudProof()
 	Bond()
 	Withdraw()
 	Client() *ethclient.Client
+}
+
+//Common types
+type Deposit struct {
+	From  common.Address
+	Value *big.Int
 }
 
 //To, from ID in the AccountsTrie

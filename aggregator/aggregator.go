@@ -3,6 +3,7 @@ package aggregator
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -96,34 +97,74 @@ func (ag *AggregatorNode) processTx(transaction optimisticrp.Transaction) (commo
 	switch err.(type) {
 	case *optimisticrp.AccountNotFound:
 		fromAcc = optimisticrp.Account{Balance: new(big.Int).SetUint64(0), Nonce: 0}
-		ag.accountsTrie.UpdateAccount(transaction.To, fromAcc)
+		ag.accountsTrie.UpdateAccount(transaction.From, fromAcc)
+	case nil:
 	default:
 		return common.Hash{}, err
 	}
 	toAcc, err := ag.accountsTrie.GetAccount(transaction.To)
 	switch err.(type) {
+	case nil:
 	case *optimisticrp.AccountNotFound:
 		toAcc = optimisticrp.Account{Balance: new(big.Int).SetUint64(0), Nonce: 0}
 		ag.accountsTrie.UpdateAccount(transaction.To, toAcc)
 	default:
 		return common.Hash{}, err
 	}
+	log.Println(fromAcc)
 	fromAcc.Balance.Sub(fromAcc.Balance, transaction.Value)
 	toAcc.Balance.Add(toAcc.Balance, transaction.Value)
 	fromAcc.Nonce++
 	ag.accountsTrie.UpdateAccount(transaction.From, fromAcc)
+	log.Println(fromAcc)
 	return ag.accountsTrie.UpdateAccount(transaction.To, toAcc), nil
+}
+
+func (ag *AggregatorNode) addFunds(account common.Address, value *big.Int) error {
+	acc, err := ag.accountsTrie.GetAccount(account)
+	switch err.(type) {
+	case nil:
+	case *optimisticrp.AccountNotFound:
+		newAcc := optimisticrp.Account{Balance: value, Nonce: 0}
+		ag.accountsTrie.UpdateAccount(account, newAcc)
+		return nil
+	default:
+		return err
+	}
+	acc.Balance.Add(acc.Balance, value)
+	ag.accountsTrie.UpdateAccount(account, acc)
+	return nil
 }
 
 //Reads all transactions to the smart contracts and computes the whole accounts trie from scratch
 func (ag *AggregatorNode) computeAccountsTrie() (common.Hash, error) {
-	transactions := make(chan optimisticrp.Transaction)
-	go ag.ethContract.GetAllTransactions(transactions)
+	onChainData := make(chan interface{})
+	go ag.ethContract.GetOnChainData(onChainData)
 	stateRoot := common.Hash{}
-	for transaction := range transactions {
-		stateRoot, err := ag.processTx(transaction)
-		if err != nil {
-			return stateRoot, err
+	pendingDeposits := []optimisticrp.Deposit{}
+	for methodData := range onChainData {
+		switch input := methodData.(type) {
+		case optimisticrp.Batch:
+			log.Println("New batch recevied")
+			//if there is a new batch we MUST update the stateRoot with the previous deposits (rule 1.)
+			for _, deposit := range pendingDeposits {
+				err := ag.addFunds(deposit.From, deposit.Value)
+				if err != nil {
+					return stateRoot, err
+				}
+			}
+			pendingDeposits = nil
+			for _, txInBatch := range input.Transactions {
+				stateRoot, err := ag.processTx(txInBatch)
+				if err != nil {
+					return stateRoot, err
+				}
+			}
+		case optimisticrp.Deposit:
+			log.Printf("New deposit recevied from %v\n", input.From)
+			pendingDeposits = append(pendingDeposits, input)
+		default:
+			log.Println("On chain data could not be mapped to any data type")
 		}
 	}
 	return stateRoot, nil
