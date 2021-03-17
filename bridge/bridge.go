@@ -81,7 +81,7 @@ func (b *Bridge) GetOnChainData(dataChannel chan<- interface{}) error {
 	if err != nil {
 		return err
 	}
-	for i := int64(0); i < header.Number.Int64(); i++ {
+	for i := int64(0); i <= header.Number.Int64(); i++ {
 		block, err := b.client.BlockByNumber(context.Background(), big.NewInt(i))
 		if err != nil {
 			return err
@@ -113,7 +113,45 @@ func (b *Bridge) GetOnChainData(dataChannel chan<- interface{}) error {
 						log.Fatal(err)
 					}
 					dataChannel <- optimisticrp.Deposit{msg.From(), tx.Value()}
+				}
+			}
+		}
+	}
+	return nil
+}
 
+func (b *Bridge) GetPendingDeposits(depChannel chan<- optimisticrp.Deposit) error {
+	defer close(depChannel)
+	header, err := b.client.HeaderByNumber(context.Background(), nil)
+	if err != nil {
+		return err
+	}
+	myAbi, err := abi.JSON(strings.NewReader(abiJsonString))
+	if err != nil {
+		return err
+	}
+	for i := header.Number.Int64(); i >= 0; i-- {
+		block, err := b.client.BlockByNumber(context.Background(), big.NewInt(i))
+		if err != nil {
+			return err
+		}
+		for _, tx := range block.Transactions() {
+			//if tx.To() == nil => Contract creation
+			if tx.To() != nil && (*(tx.To()) == b.oriAddr) {
+				inputData := tx.Data()
+				sigdata, _ := inputData[:4], inputData[4:]
+				method, err := myAbi.MethodById(sigdata)
+				if err != nil {
+					return err
+				}
+				if method.Name == "deposit" {
+					msg, err := tx.AsMessage(types.NewEIP155Signer(tx.ChainId()))
+					if err != nil {
+						log.Fatal(err)
+					}
+					depChannel <- optimisticrp.Deposit{msg.From(), tx.Value()}
+				} else if method.Name == "newBatch" {
+					return nil
 				}
 			}
 		}

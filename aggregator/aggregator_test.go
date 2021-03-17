@@ -28,10 +28,11 @@ func (m *mockBridge) GetStateRoot() (common.Hash, error) { return common.Hash{},
 func (m *mockBridge) NewBatch(optimisticrp.Batch, *bind.TransactOpts) (*types.Transaction, error) {
 	return nil, nil
 }
-func (m *mockBridge) FraudProof()             {}
-func (m *mockBridge) Bond()                   {}
-func (m *mockBridge) Withdraw()               {}
-func (m *mockBridge) OriAddr() common.Address { return common.Address{} }
+func (m *mockBridge) FraudProof()                                          {}
+func (m *mockBridge) Bond()                                                {}
+func (m *mockBridge) Withdraw()                                            {}
+func (m *mockBridge) OriAddr() common.Address                              { return common.Address{} }
+func (m *mockBridge) GetPendingDeposits(chan<- optimisticrp.Deposit) error { return nil }
 
 func (m *mockBridge) GetOnChainData(txChannel chan<- interface{}) error {
 	defer close(txChannel)
@@ -47,8 +48,17 @@ func (m *mockBridge) GetOnChainData(txChannel chan<- interface{}) error {
 			Value: big.NewInt(1e+18),
 		},
 	}
+	txs2 := []optimisticrp.Transaction{
+		{
+			From:  addrAccount3,
+			To:    addrAccount1,
+			Value: big.NewInt(3e+18),
+		},
+	}
 	txChannel <- optimisticrp.Deposit{addrAccount1, big.NewInt(0).SetUint64(10e+18)}
 	txChannel <- optimisticrp.Batch{Transactions: txs}
+	txChannel <- optimisticrp.Deposit{addrAccount3, big.NewInt(0).SetUint64(8e+18)}
+	txChannel <- optimisticrp.Batch{Transactions: txs2}
 	return nil
 }
 func TestMain(m *testing.M) {

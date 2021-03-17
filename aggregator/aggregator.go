@@ -56,6 +56,14 @@ func (ag *AggregatorNode) sendBatch() error {
 			return err
 		}
 	}
+	pendingDeposits := make(chan optimisticrp.Deposit)
+	go ag.ethContract.GetPendingDeposits(pendingDeposits)
+	for deposit := range pendingDeposits {
+		err := ag.addFunds(deposit.From, deposit.Value)
+		if err != nil {
+			return err
+		}
+	}
 	b.StateRoot = ag.accountsTrie.StateRoot()
 	b.Transactions = ag.transactions
 	txOpts, err := utils.PrepareTxOptions(big.NewInt(0), big.NewInt(-1), big.NewInt(-1), ag.privKey, ag.ethContract.Client(), ag.ethContract.OriAddr())
@@ -111,12 +119,10 @@ func (ag *AggregatorNode) processTx(transaction optimisticrp.Transaction) (commo
 	default:
 		return common.Hash{}, err
 	}
-	log.Println(fromAcc)
 	fromAcc.Balance.Sub(fromAcc.Balance, transaction.Value)
 	toAcc.Balance.Add(toAcc.Balance, transaction.Value)
 	fromAcc.Nonce++
 	ag.accountsTrie.UpdateAccount(transaction.From, fromAcc)
-	log.Println(fromAcc)
 	return ag.accountsTrie.UpdateAccount(transaction.To, toAcc), nil
 }
 

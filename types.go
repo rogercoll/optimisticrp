@@ -46,6 +46,7 @@ type OptimisticSContract interface {
 	OriAddr() common.Address
 	GetStateRoot() (common.Hash, error)
 	GetOnChainData(chan<- interface{}) error
+	GetPendingDeposits(chan<- Deposit) error
 	NewBatch(Batch, *bind.TransactOpts) (*types.Transaction, error)
 	FraudProof()
 	Bond()
