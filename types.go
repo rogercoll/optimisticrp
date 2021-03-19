@@ -2,6 +2,8 @@ package optimisticrp
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"fmt"
 	"math/big"
 
 	"encoding/binary"
@@ -13,12 +15,23 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
-const MAX_TRANSACTIONS_BATCH = 10
+const OPR_BANNER = "[OPTIMISTICRP]: "
 
-type AccountNotFound struct{}
+type AccountNotFound struct {
+	Addr common.Address
+}
 
-func (e AccountNotFound) Error() string {
-	return "The Account was not found in the Trie"
+type InvalidBalance struct {
+	Addr  common.Address
+	Total *big.Int
+}
+
+func (i *InvalidBalance) Error() string {
+	return fmt.Sprintf("%s Account %v has not enough funds (%v)", OPR_BANNER, i.Addr, i.Total)
+}
+
+func (e *AccountNotFound) Error() string {
+	return fmt.Sprintf("%s Account %v was not found in the trie", OPR_BANNER, e.Addr)
 }
 
 type Optimistic interface {
@@ -45,8 +58,9 @@ type Aggregator interface {
 type OptimisticSContract interface {
 	OriAddr() common.Address
 	GetStateRoot() (common.Hash, error)
-	GetOnChainData(chan<- interface{}) error
-	GetPendingDeposits(chan<- Deposit) error
+	GetOnChainData(chan<- interface{})
+	GetPendingDeposits(chan<- interface{})
+	PrepareTxOptions(*big.Int, *big.Int, *big.Int, *ecdsa.PrivateKey) (*bind.TransactOpts, error)
 	NewBatch(Batch, *bind.TransactOpts) (*types.Transaction, error)
 	FraudProof()
 	Bond()

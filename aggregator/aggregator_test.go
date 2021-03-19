@@ -1,6 +1,7 @@
 package aggregator
 
 import (
+	"crypto/ecdsa"
 	"log"
 	"math/big"
 	"testing"
@@ -28,13 +29,19 @@ func (m *mockBridge) GetStateRoot() (common.Hash, error) { return common.Hash{},
 func (m *mockBridge) NewBatch(optimisticrp.Batch, *bind.TransactOpts) (*types.Transaction, error) {
 	return nil, nil
 }
-func (m *mockBridge) FraudProof()                                          {}
-func (m *mockBridge) Bond()                                                {}
-func (m *mockBridge) Withdraw()                                            {}
-func (m *mockBridge) OriAddr() common.Address                              { return common.Address{} }
-func (m *mockBridge) GetPendingDeposits(chan<- optimisticrp.Deposit) error { return nil }
+func (m *mockBridge) FraudProof()             {}
+func (m *mockBridge) Bond()                   {}
+func (m *mockBridge) Withdraw()               {}
+func (m *mockBridge) OriAddr() common.Address { return common.Address{} }
+func (m *mockBridge) GetPendingDeposits(depChannel chan<- interface{}) {
+	defer close(depChannel)
+	depChannel <- optimisticrp.Deposit{addrAccount2, big.NewInt(1e+18)}
+}
 
-func (m *mockBridge) GetOnChainData(txChannel chan<- interface{}) error {
+func (m *mockBridge) PrepareTxOptions(*big.Int, *big.Int, *big.Int, *ecdsa.PrivateKey) (*bind.TransactOpts, error) {
+	return nil, nil
+}
+func (m *mockBridge) GetOnChainData(txChannel chan<- interface{}) {
 	defer close(txChannel)
 	txs := []optimisticrp.Transaction{
 		{
@@ -59,7 +66,6 @@ func (m *mockBridge) GetOnChainData(txChannel chan<- interface{}) error {
 	txChannel <- optimisticrp.Batch{Transactions: txs}
 	txChannel <- optimisticrp.Deposit{addrAccount3, big.NewInt(0).SetUint64(8e+18)}
 	txChannel <- optimisticrp.Batch{Transactions: txs2}
-	return nil
 }
 func TestMain(m *testing.M) {
 	var (
@@ -101,5 +107,15 @@ func TestComputeAccountsTrie(t *testing.T) {
 	}
 	if nonceSender != 2 {
 		t.Errorf("Nonce = %d; want %d", nonceSender, 2)
+	}
+}
+
+func TestSendBatch(t *testing.T) {
+	for i := 0; i < MAX_TRANSACTIONS_BATCH; i++ {
+		tx := optimisticrp.Transaction{Value: big.NewInt(3e+18), Gas: big.NewInt(1e+18), To: addrAccount2, From: addrAccount1}
+		err := agg.ReceiveTransaction(tx)
+		if err != nil {
+			t.Error(err)
+		}
 	}
 }

@@ -27,7 +27,7 @@ var (
 )
 
 // ContractsABI is the input ABI used to generate the binding from.
-const ContractsABI = "[{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_lock_time\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_required_bond\",\"type\":\"uint256\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"getMessage\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getStateRoot\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getToAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"lock_time\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"_batch\",\"type\":\"bytes\"}],\"name\":\"newBatch\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"_hash\",\"type\":\"bytes\"}],\"name\":\"readHash\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"_hash\",\"type\":\"bytes\"}],\"name\":\"readHashRLP\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"required_bond\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"stateRoot\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]"
+const ContractsABI = "[{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_lock_time\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_required_bond\",\"type\":\"uint256\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"user\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"stateRoot\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"New_Deposit\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"deposit\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getStateRoot\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"lock_time\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"_batch\",\"type\":\"bytes\"}],\"name\":\"newBatch\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"_hash\",\"type\":\"bytes\"}],\"name\":\"readHash\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"_hash\",\"type\":\"bytes\"}],\"name\":\"readHashRLP\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"required_bond\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"stateRoot\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]"
 
 // Contracts is an auto generated Go binding around an Ethereum contract.
 type Contracts struct {
@@ -171,37 +171,6 @@ func (_Contracts *ContractsTransactorRaw) Transact(opts *bind.TransactOpts, meth
 	return _Contracts.Contract.contract.Transact(opts, method, params...)
 }
 
-// GetMessage is a free data retrieval call binding the contract method 0xce6d41de.
-//
-// Solidity: function getMessage() view returns(string)
-func (_Contracts *ContractsCaller) GetMessage(opts *bind.CallOpts) (string, error) {
-	var out []interface{}
-	err := _Contracts.contract.Call(opts, &out, "getMessage")
-
-	if err != nil {
-		return *new(string), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(string)).(*string)
-
-	return out0, err
-
-}
-
-// GetMessage is a free data retrieval call binding the contract method 0xce6d41de.
-//
-// Solidity: function getMessage() view returns(string)
-func (_Contracts *ContractsSession) GetMessage() (string, error) {
-	return _Contracts.Contract.GetMessage(&_Contracts.CallOpts)
-}
-
-// GetMessage is a free data retrieval call binding the contract method 0xce6d41de.
-//
-// Solidity: function getMessage() view returns(string)
-func (_Contracts *ContractsCallerSession) GetMessage() (string, error) {
-	return _Contracts.Contract.GetMessage(&_Contracts.CallOpts)
-}
-
 // GetStateRoot is a free data retrieval call binding the contract method 0xcd605a1a.
 //
 // Solidity: function getStateRoot() view returns(bytes32)
@@ -231,37 +200,6 @@ func (_Contracts *ContractsSession) GetStateRoot() ([32]byte, error) {
 // Solidity: function getStateRoot() view returns(bytes32)
 func (_Contracts *ContractsCallerSession) GetStateRoot() ([32]byte, error) {
 	return _Contracts.Contract.GetStateRoot(&_Contracts.CallOpts)
-}
-
-// GetToAddress is a free data retrieval call binding the contract method 0xe411842f.
-//
-// Solidity: function getToAddress() view returns(address)
-func (_Contracts *ContractsCaller) GetToAddress(opts *bind.CallOpts) (common.Address, error) {
-	var out []interface{}
-	err := _Contracts.contract.Call(opts, &out, "getToAddress")
-
-	if err != nil {
-		return *new(common.Address), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
-
-	return out0, err
-
-}
-
-// GetToAddress is a free data retrieval call binding the contract method 0xe411842f.
-//
-// Solidity: function getToAddress() view returns(address)
-func (_Contracts *ContractsSession) GetToAddress() (common.Address, error) {
-	return _Contracts.Contract.GetToAddress(&_Contracts.CallOpts)
-}
-
-// GetToAddress is a free data retrieval call binding the contract method 0xe411842f.
-//
-// Solidity: function getToAddress() view returns(address)
-func (_Contracts *ContractsCallerSession) GetToAddress() (common.Address, error) {
-	return _Contracts.Contract.GetToAddress(&_Contracts.CallOpts)
 }
 
 // LockTime is a free data retrieval call binding the contract method 0x480bb7c4.
@@ -357,6 +295,27 @@ func (_Contracts *ContractsCallerSession) StateRoot() ([32]byte, error) {
 	return _Contracts.Contract.StateRoot(&_Contracts.CallOpts)
 }
 
+// Deposit is a paid mutator transaction binding the contract method 0xd0e30db0.
+//
+// Solidity: function deposit() payable returns()
+func (_Contracts *ContractsTransactor) Deposit(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _Contracts.contract.Transact(opts, "deposit")
+}
+
+// Deposit is a paid mutator transaction binding the contract method 0xd0e30db0.
+//
+// Solidity: function deposit() payable returns()
+func (_Contracts *ContractsSession) Deposit() (*types.Transaction, error) {
+	return _Contracts.Contract.Deposit(&_Contracts.TransactOpts)
+}
+
+// Deposit is a paid mutator transaction binding the contract method 0xd0e30db0.
+//
+// Solidity: function deposit() payable returns()
+func (_Contracts *ContractsTransactorSession) Deposit() (*types.Transaction, error) {
+	return _Contracts.Contract.Deposit(&_Contracts.TransactOpts)
+}
+
 // NewBatch is a paid mutator transaction binding the contract method 0xdbcf9bd2.
 //
 // Solidity: function newBatch(bytes _batch) returns(string)
@@ -418,4 +377,140 @@ func (_Contracts *ContractsSession) ReadHashRLP(_hash []byte) (*types.Transactio
 // Solidity: function readHashRLP(bytes _hash) returns(string)
 func (_Contracts *ContractsTransactorSession) ReadHashRLP(_hash []byte) (*types.Transaction, error) {
 	return _Contracts.Contract.ReadHashRLP(&_Contracts.TransactOpts, _hash)
+}
+
+// ContractsNewDepositIterator is returned from FilterNewDeposit and is used to iterate over the raw logs and unpacked data for NewDeposit events raised by the Contracts contract.
+type ContractsNewDepositIterator struct {
+	Event *ContractsNewDeposit // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *ContractsNewDepositIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(ContractsNewDeposit)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(ContractsNewDeposit)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *ContractsNewDepositIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *ContractsNewDepositIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// ContractsNewDeposit represents a NewDeposit event raised by the Contracts contract.
+type ContractsNewDeposit struct {
+	User      common.Address
+	StateRoot [32]byte
+	Value     *big.Int
+	Raw       types.Log // Blockchain specific contextual infos
+}
+
+// FilterNewDeposit is a free log retrieval operation binding the contract event 0xcd383a129c9295e144cae64b0726b69050054843ac23c8ca12b84fd69464ed8c.
+//
+// Solidity: event New_Deposit(address user, bytes32 stateRoot, uint256 value)
+func (_Contracts *ContractsFilterer) FilterNewDeposit(opts *bind.FilterOpts) (*ContractsNewDepositIterator, error) {
+
+	logs, sub, err := _Contracts.contract.FilterLogs(opts, "New_Deposit")
+	if err != nil {
+		return nil, err
+	}
+	return &ContractsNewDepositIterator{contract: _Contracts.contract, event: "New_Deposit", logs: logs, sub: sub}, nil
+}
+
+// WatchNewDeposit is a free log subscription operation binding the contract event 0xcd383a129c9295e144cae64b0726b69050054843ac23c8ca12b84fd69464ed8c.
+//
+// Solidity: event New_Deposit(address user, bytes32 stateRoot, uint256 value)
+func (_Contracts *ContractsFilterer) WatchNewDeposit(opts *bind.WatchOpts, sink chan<- *ContractsNewDeposit) (event.Subscription, error) {
+
+	logs, sub, err := _Contracts.contract.WatchLogs(opts, "New_Deposit")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(ContractsNewDeposit)
+				if err := _Contracts.contract.UnpackLog(event, "New_Deposit", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseNewDeposit is a log parse operation binding the contract event 0xcd383a129c9295e144cae64b0726b69050054843ac23c8ca12b84fd69464ed8c.
+//
+// Solidity: event New_Deposit(address user, bytes32 stateRoot, uint256 value)
+func (_Contracts *ContractsFilterer) ParseNewDeposit(log types.Log) (*ContractsNewDeposit, error) {
+	event := new(ContractsNewDeposit)
+	if err := _Contracts.contract.UnpackLog(event, "New_Deposit", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
 }

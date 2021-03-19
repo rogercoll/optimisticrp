@@ -21,7 +21,7 @@ func (ot *OptimisticTrie) GetAccount(address common.Address) (Account, error) {
 	fBytes := ot.Get(address.Bytes())
 	var acc Account
 	if len(fBytes) == 0 {
-		return acc, &AccountNotFound{}
+		return acc, &AccountNotFound{address}
 	}
 	_, err := acc.UnMarshalBinary(fBytes)
 	if err != nil {

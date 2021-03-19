@@ -2,14 +2,16 @@ package aggregator
 
 import (
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rogercoll/optimisticrp"
-	"github.com/rogercoll/optimisticrp/utils"
 )
+
+const MAX_TRANSACTIONS_BATCH = 10
 
 type AggregatorNode struct {
 	transactions []optimisticrp.Transaction
@@ -50,23 +52,9 @@ func (ag *AggregatorNode) sendBatch() error {
 	b := optimisticrp.Batch{
 		PrevStateRoot: ag.accountsTrie.StateRoot(),
 	}
-	for _, tx := range ag.transactions {
-		_, err := ag.processTx(tx)
-		if err != nil {
-			return err
-		}
-	}
-	pendingDeposits := make(chan optimisticrp.Deposit)
-	go ag.ethContract.GetPendingDeposits(pendingDeposits)
-	for deposit := range pendingDeposits {
-		err := ag.addFunds(deposit.From, deposit.Value)
-		if err != nil {
-			return err
-		}
-	}
 	b.StateRoot = ag.accountsTrie.StateRoot()
 	b.Transactions = ag.transactions
-	txOpts, err := utils.PrepareTxOptions(big.NewInt(0), big.NewInt(-1), big.NewInt(-1), ag.privKey, ag.ethContract.Client(), ag.ethContract.OriAddr())
+	txOpts, err := ag.ethContract.PrepareTxOptions(big.NewInt(0), big.NewInt(2), big.NewInt(2), ag.privKey)
 	if err != nil {
 		return err
 	}
@@ -88,7 +76,24 @@ func (ag *AggregatorNode) ActualNonce(acc common.Address) (uint64, error) {
 
 func (ag *AggregatorNode) ReceiveTransaction(tx optimisticrp.Transaction) error {
 	ag.transactions = append(ag.transactions, tx)
-	if len(ag.transactions) == optimisticrp.MAX_TRANSACTIONS_BATCH {
+	if len(ag.transactions) == MAX_TRANSACTIONS_BATCH {
+		_, err := ag.processTx(tx)
+		if err != nil {
+			return err
+		}
+		pendingDeposits := make(chan interface{})
+		go ag.ethContract.GetPendingDeposits(pendingDeposits)
+		for deposit := range pendingDeposits {
+			switch input := deposit.(type) {
+			case optimisticrp.Deposit:
+				err := ag.addFunds(input.From, input.Value)
+				if err != nil {
+					return err
+				}
+			case error:
+				return input
+			}
+		}
 		ag.sendBatch()
 	}
 	return nil
@@ -118,6 +123,9 @@ func (ag *AggregatorNode) processTx(transaction optimisticrp.Transaction) (commo
 		ag.accountsTrie.UpdateAccount(transaction.To, toAcc)
 	default:
 		return common.Hash{}, err
+	}
+	if fromAcc.Balance.Cmp(transaction.Value) == -1 {
+		return common.Hash{}, &optimisticrp.InvalidBalance{transaction.From, fromAcc.Balance}
 	}
 	fromAcc.Balance.Sub(fromAcc.Balance, transaction.Value)
 	toAcc.Balance.Add(toAcc.Balance, transaction.Value)
@@ -169,8 +177,10 @@ func (ag *AggregatorNode) computeAccountsTrie() (common.Hash, error) {
 		case optimisticrp.Deposit:
 			log.Printf("New deposit recevied from %v\n", input.From)
 			pendingDeposits = append(pendingDeposits, input)
+		case error:
+			return stateRoot, input
 		default:
-			log.Println("On chain data could not be mapped to any data type")
+			errors.New("There was an error while fetching onChain data")
 		}
 	}
 	return stateRoot, nil

@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"log"
 	"math/big"
 	"strings"
@@ -14,8 +15,6 @@ import (
 	"github.com/rogercoll/optimisticrp"
 	store "github.com/rogercoll/optimisticrp/contracts"
 )
-
-var abiJsonString = `[{"inputs":[{"internalType":"uint256","name":"_lock_time","type":"uint256"},{"internalType":"uint256","name":"_required_bond","type":"uint256"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[],"name":"getMessage","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getStateRoot","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"getToAddress","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"lock_time","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes","name":"_batch","type":"bytes"}],"name":"newBatch","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bytes","name":"_hash","type":"bytes"}],"name":"readHash","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bytes","name":"_hash","type":"bytes"}],"name":"readHashRLP","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"required_bond","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"stateRoot","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"}]`
 
 type Bridge struct {
 	oriContract *store.Contracts
@@ -71,20 +70,21 @@ func (b *Bridge) Withdraw() {
 
 //Reads all transactions to the smart contracts and computes the whole accounts trie from scratch
 //This implementation is used for local chains, few blocks. In production (main chain) you shall use an ingestion service to get all the transactions of a given address.
-func (b *Bridge) GetOnChainData(dataChannel chan<- interface{}) error {
+func (b *Bridge) GetOnChainData(dataChannel chan<- interface{}) {
 	defer close(dataChannel)
 	header, err := b.client.HeaderByNumber(context.Background(), nil)
 	if err != nil {
-		return err
+		dataChannel <- err
 	}
 	myAbi, err := abi.JSON(strings.NewReader(abiJsonString))
 	if err != nil {
-		return err
+		dataChannel <- err
 	}
+	log.Printf("Analyzing %v blocks\n", header.Number)
 	for i := int64(0); i <= header.Number.Int64(); i++ {
 		block, err := b.client.BlockByNumber(context.Background(), big.NewInt(i))
 		if err != nil {
-			return err
+			dataChannel <- err
 		}
 		for _, tx := range block.Transactions() {
 			//if tx.To() == nil => Contract creation
@@ -93,13 +93,13 @@ func (b *Bridge) GetOnChainData(dataChannel chan<- interface{}) error {
 				sigdata, argdata := inputData[:4], inputData[4:]
 				method, err := myAbi.MethodById(sigdata)
 				if err != nil {
-					return err
+					dataChannel <- err
 				}
 				if method.Name == "newBatch" {
 					log.Println("New batch transaction data detected, reading transactions")
 					data, err := method.Inputs.UnpackValues(argdata)
 					if err != nil {
-						return err
+						dataChannel <- err
 					}
 					batch, err := optimisticrp.UnMarshalBatch(data[0].([]byte))
 					if err != nil {
@@ -110,30 +110,30 @@ func (b *Bridge) GetOnChainData(dataChannel chan<- interface{}) error {
 				} else if method.Name == "deposit" {
 					msg, err := tx.AsMessage(types.NewEIP155Signer(tx.ChainId()))
 					if err != nil {
-						log.Fatal(err)
+						dataChannel <- err
 					}
 					dataChannel <- optimisticrp.Deposit{msg.From(), tx.Value()}
 				}
 			}
 		}
 	}
-	return nil
+	log.Printf("All blocks analized")
 }
 
-func (b *Bridge) GetPendingDeposits(depChannel chan<- optimisticrp.Deposit) error {
+func (b *Bridge) GetPendingDeposits(depChannel chan<- interface{}) {
 	defer close(depChannel)
 	header, err := b.client.HeaderByNumber(context.Background(), nil)
 	if err != nil {
-		return err
+		depChannel <- err
 	}
 	myAbi, err := abi.JSON(strings.NewReader(abiJsonString))
 	if err != nil {
-		return err
+		depChannel <- err
 	}
 	for i := header.Number.Int64(); i >= 0; i-- {
 		block, err := b.client.BlockByNumber(context.Background(), big.NewInt(i))
 		if err != nil {
-			return err
+			depChannel <- err
 		}
 		for _, tx := range block.Transactions() {
 			//if tx.To() == nil => Contract creation
@@ -142,7 +142,7 @@ func (b *Bridge) GetPendingDeposits(depChannel chan<- optimisticrp.Deposit) erro
 				sigdata, _ := inputData[:4], inputData[4:]
 				method, err := myAbi.MethodById(sigdata)
 				if err != nil {
-					return err
+					depChannel <- err
 				}
 				if method.Name == "deposit" {
 					msg, err := tx.AsMessage(types.NewEIP155Signer(tx.ChainId()))
@@ -151,10 +151,29 @@ func (b *Bridge) GetPendingDeposits(depChannel chan<- optimisticrp.Deposit) erro
 					}
 					depChannel <- optimisticrp.Deposit{msg.From(), tx.Value()}
 				} else if method.Name == "newBatch" {
-					return nil
+					depChannel <- err
 				}
 			}
 		}
 	}
-	return nil
+}
+
+//If gasPrice == -1 => ask to the client suggested gas price
+func (b *Bridge) PrepareTxOptions(value, gasLimit, gasPrice *big.Int, privKey *ecdsa.PrivateKey) (*bind.TransactOpts, error) {
+	nonce, err := b.client.PendingNonceAt(context.Background(), b.oriAddr)
+	if err != nil {
+		return nil, err
+	}
+	if gasPrice.Cmp(big.NewInt(-1)) == 0 {
+		gasPrice, err = b.client.SuggestGasPrice(context.Background())
+		if err != nil {
+			return nil, err
+		}
+	}
+	auth := bind.NewKeyedTransactor(privKey)
+	auth.Nonce = big.NewInt(int64(nonce))
+	auth.Value = value             // in wei
+	auth.GasLimit = uint64(300000) // in units
+	auth.GasPrice = gasPrice
+	return auth, nil
 }

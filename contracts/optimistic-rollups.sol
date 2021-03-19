@@ -2,7 +2,7 @@
 
 pragma solidity >=0.6.0 <=0.7.3;
 
-import "./RLPReader.sol";
+import "./Solidity-RLP/contracts/RLPReader.sol";
 
 contract Optimistic_Rollups {
     
