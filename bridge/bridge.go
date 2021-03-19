@@ -43,6 +43,7 @@ func (b *Bridge) GetStateRoot() (common.Hash, error) {
 }
 
 func (b *Bridge) NewBatch(batch optimisticrp.Batch, txOpts *bind.TransactOpts) (*types.Transaction, error) {
+	log.Println(batch)
 	result, err := batch.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -99,6 +100,7 @@ func (b *Bridge) GetOnChainData(dataChannel chan<- interface{}) {
 					log.Println("New batch transaction data detected, reading transactions")
 					data, err := method.Inputs.UnpackValues(argdata)
 					if err != nil {
+						log.Println("here")
 						dataChannel <- err
 					}
 					batch, err := optimisticrp.UnMarshalBatch(data[0].([]byte))
@@ -106,7 +108,7 @@ func (b *Bridge) GetOnChainData(dataChannel chan<- interface{}) {
 						log.Println("Transaction does not contain a batch, skipping...")
 						continue
 					}
-					dataChannel <- batch
+					dataChannel <- optimisticrp.Batch{batch.PrevStateRoot, batch.StateRoot, batch.Transactions}
 				} else if method.Name == "deposit" {
 					msg, err := tx.AsMessage(types.NewEIP155Signer(tx.ChainId()))
 					if err != nil {
@@ -171,7 +173,7 @@ func (b *Bridge) PrepareTxOptions(value, gasLimit, gasPrice *big.Int, privKey *e
 		}
 	}
 	auth := bind.NewKeyedTransactor(privKey)
-	auth.Nonce = big.NewInt(int64(nonce))
+	auth.Nonce = big.NewInt(int64(nonce) + 2)
 	auth.Value = value             // in wei
 	auth.GasLimit = uint64(300000) // in units
 	auth.GasPrice = gasPrice

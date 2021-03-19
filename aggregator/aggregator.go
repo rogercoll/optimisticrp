@@ -18,6 +18,7 @@ type AggregatorNode struct {
 	accountsTrie optimisticrp.Optimistic
 	ethContract  optimisticrp.OptimisticSContract
 	privKey      *ecdsa.PrivateKey
+	onChainRoot  common.Hash
 }
 
 func New(newAccountsTrie optimisticrp.Optimistic, newEthContract optimisticrp.OptimisticSContract, privateKey *ecdsa.PrivateKey) *AggregatorNode {
@@ -41,6 +42,8 @@ func (ag *AggregatorNode) Synced() (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	log.Printf("Computed state root: %v", stateRoot)
+	log.Printf("OnChain state root: %v", onChainStateRoot)
 	if stateRoot != onChainStateRoot {
 		return false, fmt.Errorf("Aggregator was not able to compute a valid StateRoot")
 	}
@@ -50,7 +53,8 @@ func (ag *AggregatorNode) Synced() (bool, error) {
 //if sendBatch succeeds we should notify all user transactions
 func (ag *AggregatorNode) sendBatch() error {
 	b := optimisticrp.Batch{
-		PrevStateRoot: ag.accountsTrie.StateRoot(),
+		PrevStateRoot: ag.onChainRoot,
+		StateRoot:     ag.accountsTrie.StateRoot(),
 	}
 	b.StateRoot = ag.accountsTrie.StateRoot()
 	b.Transactions = ag.transactions
@@ -75,12 +79,7 @@ func (ag *AggregatorNode) ActualNonce(acc common.Address) (uint64, error) {
 }
 
 func (ag *AggregatorNode) ReceiveTransaction(tx optimisticrp.Transaction) error {
-	ag.transactions = append(ag.transactions, tx)
-	if len(ag.transactions) == MAX_TRANSACTIONS_BATCH {
-		_, err := ag.processTx(tx)
-		if err != nil {
-			return err
-		}
+	if len(ag.transactions) == 0 {
 		pendingDeposits := make(chan interface{})
 		go ag.ethContract.GetPendingDeposits(pendingDeposits)
 		for deposit := range pendingDeposits {
@@ -94,7 +93,18 @@ func (ag *AggregatorNode) ReceiveTransaction(tx optimisticrp.Transaction) error 
 				return input
 			}
 		}
-		ag.sendBatch()
+	}
+	_, err := ag.processTx(tx)
+	if err != nil {
+		return err
+	}
+	ag.transactions = append(ag.transactions, tx)
+	if len(ag.transactions) == MAX_TRANSACTIONS_BATCH {
+		log.Println("Sending batch")
+		err := ag.sendBatch()
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -106,13 +116,7 @@ func (ag *AggregatorNode) onChainStateRoot() (common.Hash, error) {
 
 func (ag *AggregatorNode) processTx(transaction optimisticrp.Transaction) (common.Hash, error) {
 	fromAcc, err := ag.accountsTrie.GetAccount(transaction.From)
-	//fromAcc should not be added to the trie if destination addr != 0x0
-	switch err.(type) {
-	case *optimisticrp.AccountNotFound:
-		fromAcc = optimisticrp.Account{Balance: new(big.Int).SetUint64(0), Nonce: 0}
-		ag.accountsTrie.UpdateAccount(transaction.From, fromAcc)
-	case nil:
-	default:
+	if err != nil {
 		return common.Hash{}, err
 	}
 	toAcc, err := ag.accountsTrie.GetAccount(transaction.To)
@@ -156,6 +160,7 @@ func (ag *AggregatorNode) computeAccountsTrie() (common.Hash, error) {
 	go ag.ethContract.GetOnChainData(onChainData)
 	stateRoot := common.Hash{}
 	pendingDeposits := []optimisticrp.Deposit{}
+	var err error
 	for methodData := range onChainData {
 		switch input := methodData.(type) {
 		case optimisticrp.Batch:
@@ -169,7 +174,7 @@ func (ag *AggregatorNode) computeAccountsTrie() (common.Hash, error) {
 			}
 			pendingDeposits = nil
 			for _, txInBatch := range input.Transactions {
-				stateRoot, err := ag.processTx(txInBatch)
+				stateRoot, err = ag.processTx(txInBatch)
 				if err != nil {
 					return stateRoot, err
 				}
@@ -179,8 +184,9 @@ func (ag *AggregatorNode) computeAccountsTrie() (common.Hash, error) {
 			pendingDeposits = append(pendingDeposits, input)
 		case error:
 			return stateRoot, input
+
 		default:
-			errors.New("There was an error while fetching onChain data")
+			return common.Hash{}, errors.New("There was an error while fetching onChain data")
 		}
 	}
 	return stateRoot, nil

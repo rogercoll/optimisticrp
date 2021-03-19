@@ -112,7 +112,7 @@ func TestComputeAccountsTrie(t *testing.T) {
 
 func TestSendBatch(t *testing.T) {
 	for i := 0; i < MAX_TRANSACTIONS_BATCH; i++ {
-		tx := optimisticrp.Transaction{Value: big.NewInt(3e+18), Gas: big.NewInt(1e+18), To: addrAccount2, From: addrAccount1}
+		tx := optimisticrp.Transaction{Value: big.NewInt(1e+18), Gas: big.NewInt(1e+18), To: addrAccount2, From: addrAccount1}
 		err := agg.ReceiveTransaction(tx)
 		if err != nil {
 			t.Error(err)
