@@ -33,3 +33,6 @@ About Fuel
 Things I haven’t read at all:
 - https://ethresear.ch/t/nearly-zero-cost-attack-scenario-on-optimistic-rollup/6336
 - https://vitalik.ca/general/2019/08/28/hybrid_layer_2.html
+
+Technical resources:
+- https://github.com/ethereum-optimism/contracts/tree/master/contracts/optimistic-ethereum/libraries/trie 
