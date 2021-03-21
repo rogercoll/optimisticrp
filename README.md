@@ -1,5 +1,7 @@
 # Optimistic Rollups PoC
 
+![Go](https://github.com/rogercoll/optimisticrp/workflows/Go/badge.svg)
+
 ## On-chain features
 
 `deposit()` => Any account that want to add funds into the Optimistic layer 2 scheme, thus will be able to transfer ethers to other accounts.
