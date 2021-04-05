@@ -13,7 +13,32 @@ import (
 var (
 	address1 = common.HexToAddress("0xF93e6F80229B8Bbe14f6311b5EC1Fa36DfdEC5eB")
 	acc1     = Account{Balance: new(big.Int).SetUint64(10e+18), Nonce: 0}
+	address2 = common.HexToAddress("0xA13e6F80229B8Bbe14f6311b5EC1Fa36DfdEC5eB")
+	acc2     = Account{Balance: new(big.Int).SetUint64(3e+18), Nonce: 2}
+	address3 = common.HexToAddress("0xC13e6F31259B8Bbe94f6311b5EC1Fa36DfdEC5eB")
+	acc3     = Account{Balance: new(big.Int).SetUint64(1e+18), Nonce: 3}
 )
+
+func TestNewProve(t *testing.T) {
+	var (
+		diskdb = memorydb.New()
+		triedb = trie.NewDatabase(diskdb)
+	)
+	tr, err := NewTrie(triedb)
+	if err != nil {
+		log.Fatal(err)
+	}
+	_ = tr.UpdateAccount(address1, acc1)
+	_ = tr.UpdateAccount(address2, acc2)
+	_ = tr.UpdateAccount(address3, acc3)
+	toSend, err := tr.NewProve(address1)
+	if err != nil {
+		t.Log(err)
+	}
+	if len(toSend[2]) == 0 {
+		t.Error("Proof data cannot be empty")
+	}
+}
 
 func TestGetAccount(t *testing.T) {
 	var (

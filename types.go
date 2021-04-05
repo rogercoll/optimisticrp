@@ -38,6 +38,7 @@ type Optimistic interface {
 	StateRoot() common.Hash
 	GetAccount(common.Address) (Account, error)
 	UpdateAccount(common.Address, Account) common.Hash
+	NewProve(common.Address) ([][]byte, error)
 }
 type Signer interface {
 	// SignatureValues returns the raw R, S, V values corresponding to the
