@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/rogercoll/optimisticrp"
 	store "github.com/rogercoll/optimisticrp/contracts"
@@ -162,18 +163,27 @@ func (b *Bridge) GetPendingDeposits(depChannel chan<- interface{}) {
 
 //If gasPrice == -1 => ask to the client suggested gas price
 func (b *Bridge) PrepareTxOptions(value, gasLimit, gasPrice *big.Int, privKey *ecdsa.PrivateKey) (*bind.TransactOpts, error) {
-	nonce, err := b.client.PendingNonceAt(context.Background(), b.oriAddr)
-	if err != nil {
-		return nil, err
-	}
+	var err error
 	if gasPrice.Cmp(big.NewInt(-1)) == 0 {
 		gasPrice, err = b.client.SuggestGasPrice(context.Background())
 		if err != nil {
 			return nil, err
 		}
 	}
+	publicKey := privKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		log.Fatal("error casting public key to ECDSA")
+	}
+
+	fromAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+
+	nonce, err := b.client.PendingNonceAt(context.Background(), fromAddress)
+	if err != nil {
+		log.Fatal(err)
+	}
 	auth := bind.NewKeyedTransactor(privKey)
-	auth.Nonce = big.NewInt(int64(nonce) + 2)
+	auth.Nonce = new(big.Int).SetUint64(nonce)
 	auth.Value = value             // in wei
 	auth.GasLimit = uint64(300000) // in units
 	auth.GasPrice = gasPrice
