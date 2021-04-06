@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -22,7 +23,7 @@ func main() {
 		log.Fatal(err)
 	}
 	log.Println("Connected to the ETH client")
-	mybridge, err := bridge.New(common.HexToAddress("0xeA7bf969d0559f4EF1aD6645C19ED25c742a9F71"), client)
+	mybridge, err := bridge.New(common.HexToAddress("0x6E5145ed29Fa700f9d7c5de5F3A0Ba183926d3b9"), client)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -49,13 +50,11 @@ func main() {
 		log.Fatal("Was not able to syncronize")
 	}
 	log.Println("Successfully syncronized with on-chain data")
-	/*
-		for i := 0; i < 10; i++ {
-			tx := optimisticrp.Transaction{Value: big.NewInt(1e+17), Gas: big.NewInt(1e+18), To: addrAccount2, From: addrAccount1}
-			err := myaggregator.ReceiveTransaction(tx)
-			if err != nil {
-				log.Fatal(err)
-			}
+	for i := 0; i < 10; i++ {
+		tx := optimisticrp.Transaction{Value: big.NewInt(1e+17), Gas: big.NewInt(1e+18), To: addrAccount2, From: addrAccount1}
+		err := myaggregator.ReceiveTransaction(tx)
+		if err != nil {
+			log.Fatal(err)
 		}
-	*/
+	}
 }
