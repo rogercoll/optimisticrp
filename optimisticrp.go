@@ -1,6 +1,8 @@
 package optimisticrp
 
 import (
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb/memorydb"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -71,4 +73,45 @@ func (ot *OptimisticTrie) NewProve(address common.Address) ([][]byte, error) {
 	//rlp proof for onchain data https://github.com/ethereum-optimism/contracts/blob/c39fcc40aec235511a5a161c3e33a6d3bd24221c/test/helpers/trie/trie-test-generator.ts#L170
 	toSend[2] = rlpProof
 	return toSend, nil
+}
+
+//Additional helpers not linked to interface so you can use them as you wish
+func (ot *OptimisticTrie) AddFunds(account common.Address, value *big.Int) error {
+	acc, err := ot.GetAccount(account)
+	switch err.(type) {
+	case nil:
+	case *AccountNotFound:
+		newAcc := Account{Balance: value, Nonce: 0}
+		ot.UpdateAccount(account, newAcc)
+		return nil
+	default:
+		return err
+	}
+	acc.Balance.Add(acc.Balance, value)
+	ot.UpdateAccount(account, acc)
+	return nil
+}
+
+func (ot *OptimisticTrie) ProcessTx(transaction Transaction) (common.Hash, error) {
+	fromAcc, err := ot.GetAccount(transaction.From)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	toAcc, err := ot.GetAccount(transaction.To)
+	switch err.(type) {
+	case nil:
+	case *AccountNotFound:
+		toAcc = Account{Balance: new(big.Int).SetUint64(0), Nonce: 0}
+		ot.UpdateAccount(transaction.To, toAcc)
+	default:
+		return common.Hash{}, err
+	}
+	if fromAcc.Balance.Cmp(transaction.Value) == -1 {
+		return common.Hash{}, &InvalidBalance{transaction.From, fromAcc.Balance}
+	}
+	fromAcc.Balance.Sub(fromAcc.Balance, transaction.Value)
+	toAcc.Balance.Add(toAcc.Balance, transaction.Value)
+	fromAcc.Nonce++
+	ot.UpdateAccount(transaction.From, fromAcc)
+	return ot.UpdateAccount(transaction.To, toAcc), nil
 }
