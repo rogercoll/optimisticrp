@@ -58,7 +58,7 @@ func (v *VerifierNode) generateProof(acc common.Address) {
 func (v *VerifierNode) VerifyOnChainData(logs chan<- interface{}) {
 	defer close(logs)
 	//Every 20 seconds scan the chain looking for new batches with errors
-	ticker := time.NewTicker(20 * time.Second)
+	ticker := time.NewTicker(5 * time.Second)
 	quit := make(chan struct{})
 	defer close(quit)
 	for {

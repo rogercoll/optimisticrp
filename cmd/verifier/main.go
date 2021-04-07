@@ -47,7 +47,6 @@ func main() {
 	for {
 		select {
 		case input := <-logs:
-			log.Println("new data")
 			switch vlog := input.(type) {
 			case error:
 				log.Fatal(vlog)
