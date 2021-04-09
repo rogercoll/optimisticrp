@@ -91,31 +91,36 @@ func (b *Bridge) GetOnChainData(dataChannel chan<- interface{}) {
 		for _, tx := range block.Transactions() {
 			//if tx.To() == nil => Contract creation
 			if tx.To() != nil && (*(tx.To()) == b.oriAddr) {
-				inputData := tx.Data()
-				sigdata, argdata := inputData[:4], inputData[4:]
-				method, err := myAbi.MethodById(sigdata)
+				txReceipt, err := b.client.TransactionReceipt(context.Background(), tx.Hash())
 				if err != nil {
 					dataChannel <- err
 				}
-				if method.Name == "newBatch" {
-					log.Println("New batch transaction data detected, reading transactions")
-					data, err := method.Inputs.UnpackValues(argdata)
-					if err != nil {
-						log.Println("here")
-						dataChannel <- err
-					}
-					batch, err := optimisticrp.UnMarshalBatch(data[0].([]byte))
-					if err != nil {
-						log.Println("Transaction does not contain a batch, skipping...")
-						continue
-					}
-					dataChannel <- optimisticrp.Batch{batch.PrevStateRoot, batch.StateRoot, batch.Transactions}
-				} else if method.Name == "deposit" {
-					msg, err := tx.AsMessage(types.NewEIP155Signer(tx.ChainId()))
+				if txReceipt.Status == 1 {
+					inputData := tx.Data()
+					sigdata, argdata := inputData[:4], inputData[4:]
+					method, err := myAbi.MethodById(sigdata)
 					if err != nil {
 						dataChannel <- err
 					}
-					dataChannel <- optimisticrp.Deposit{msg.From(), tx.Value()}
+					if method.Name == "newBatch" {
+						log.Println("New batch transaction data detected, reading transactions")
+						data, err := method.Inputs.UnpackValues(argdata)
+						if err != nil {
+							dataChannel <- err
+						}
+						batch, err := optimisticrp.UnMarshalBatch(data[0].([]byte))
+						if err != nil {
+							log.Println("Transaction does not contain a batch, skipping...")
+							continue
+						}
+						dataChannel <- optimisticrp.Batch{batch.PrevStateRoot, batch.StateRoot, batch.Transactions}
+					} else if method.Name == "deposit" {
+						msg, err := tx.AsMessage(types.NewEIP155Signer(tx.ChainId()))
+						if err != nil {
+							dataChannel <- err
+						}
+						dataChannel <- optimisticrp.Deposit{msg.From(), tx.Value()}
+					}
 				}
 			}
 		}
@@ -141,20 +146,27 @@ func (b *Bridge) GetPendingDeposits(depChannel chan<- interface{}) {
 		for _, tx := range block.Transactions() {
 			//if tx.To() == nil => Contract creation
 			if tx.To() != nil && (*(tx.To()) == b.oriAddr) {
-				inputData := tx.Data()
-				sigdata, _ := inputData[:4], inputData[4:]
-				method, err := myAbi.MethodById(sigdata)
+				txReceipt, err := b.client.TransactionReceipt(context.Background(), tx.Hash())
 				if err != nil {
 					depChannel <- err
 				}
-				if method.Name == "deposit" {
-					msg, err := tx.AsMessage(types.NewEIP155Signer(tx.ChainId()))
+				//only proceed if the transaction was not reverted => valid == 1
+				if txReceipt.Status == 1 {
+					inputData := tx.Data()
+					sigdata, _ := inputData[:4], inputData[4:]
+					method, err := myAbi.MethodById(sigdata)
 					if err != nil {
-						log.Fatal(err)
+						depChannel <- err
 					}
-					depChannel <- optimisticrp.Deposit{msg.From(), tx.Value()}
-				} else if method.Name == "newBatch" {
-					depChannel <- err
+					if method.Name == "deposit" {
+						msg, err := tx.AsMessage(types.NewEIP155Signer(tx.ChainId()))
+						if err != nil {
+							log.Fatal(err)
+						}
+						depChannel <- optimisticrp.Deposit{msg.From(), tx.Value()}
+					} else if method.Name == "newBatch" {
+						depChannel <- err
+					}
 				}
 			}
 		}
@@ -184,8 +196,8 @@ func (b *Bridge) PrepareTxOptions(value, gasLimit, gasPrice *big.Int, privKey *e
 	}
 	auth := bind.NewKeyedTransactor(privKey)
 	auth.Nonce = new(big.Int).SetUint64(nonce)
-	auth.Value = value             // in wei
-	auth.GasLimit = uint64(300000) // in units
+	auth.Value = value              // in wei
+	auth.GasLimit = uint64(5000000) // in units
 	auth.GasPrice = gasPrice
 	return auth, nil
 }
