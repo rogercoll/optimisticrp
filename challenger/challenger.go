@@ -1,4 +1,4 @@
-package verifier
+package challenger
 
 import (
 	"crypto/ecdsa"
@@ -11,7 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type VerifierNode struct {
+type ChallengerNode struct {
 	accountsTrie optimisticrp.Optimistic
 	ethContract  optimisticrp.OptimisticSContract
 	privKey      *ecdsa.PrivateKey
@@ -19,11 +19,11 @@ type VerifierNode struct {
 	log          *logrus.Entry
 }
 
-func New(newAccountsTrie optimisticrp.Optimistic, newEthContract optimisticrp.OptimisticSContract, privateKey *ecdsa.PrivateKey, logger *logrus.Logger) *VerifierNode {
+func New(newAccountsTrie optimisticrp.Optimistic, newEthContract optimisticrp.OptimisticSContract, privateKey *ecdsa.PrivateKey, logger *logrus.Logger) *ChallengerNode {
 	challengerLogger := logger.WithFields(logrus.Fields{
 		"service": "Challenger",
 	})
-	return &VerifierNode{
+	return &ChallengerNode{
 		accountsTrie: newAccountsTrie,
 		ethContract:  newEthContract,
 		privKey:      privateKey,
@@ -32,7 +32,7 @@ func New(newAccountsTrie optimisticrp.Optimistic, newEthContract optimisticrp.Op
 }
 
 //Sync with on-chain smart contract
-func (v *VerifierNode) Synced() (bool, error) {
+func (v *ChallengerNode) Synced() (bool, error) {
 	v.log.Info("Starting sync process with onchain data")
 	onChainStateRoot, err := v.ethContract.GetStateRoot()
 	if err != nil {
@@ -54,14 +54,14 @@ func (v *VerifierNode) Synced() (bool, error) {
 }
 
 //Generate proof data to be send onchain, a proof proves that key with a certain value exits on the trie
-func (v *VerifierNode) generateProof(acc common.Address) {
+func (v *ChallengerNode) generateProof(acc common.Address) {
 	_, err := v.accountsTrie.NewProve(acc)
 	if err != nil {
 		return
 	}
 }
 
-func (v *VerifierNode) VerifyOnChainData(errs chan<- interface{}) {
+func (v *ChallengerNode) VerifyOnChainData(errs chan<- interface{}) {
 	defer close(errs)
 	//Every 20 seconds scan the chain looking for new batches with errors
 	ticker := time.NewTicker(5 * time.Second)
@@ -89,10 +89,10 @@ func (v *VerifierNode) VerifyOnChainData(errs chan<- interface{}) {
 
 //Reads all transactions to the smart contracts and computes the whole accounts trie from scratch
 //IMPORTANT: This implementation uses the already defined OptimisticTrie object to prevent implementing the AddFunds and ProcessTx functions
-func (v *VerifierNode) computeAccountsTrie() (common.Hash, error) {
+func (v *ChallengerNode) computeAccountsTrie() (common.Hash, error) {
 	optimisticTrie, ok := v.accountsTrie.(*optimisticrp.OptimisticTrie)
 	if ok != true {
-		return common.Hash{}, fmt.Errorf("This verifier implementation uses the OptimisticTrie object, if you are not, please develop your own verifier functions")
+		return common.Hash{}, fmt.Errorf("This challenger implementation uses the OptimisticTrie object, if you are not, please develop your own challenger functions")
 	}
 	onChainData := make(chan interface{})
 	go v.ethContract.GetOnChainData(onChainData)

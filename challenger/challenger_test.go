@@ -1,4 +1,4 @@
-package verifier
+package challenger
 
 import (
 	"crypto/ecdsa"
@@ -16,7 +16,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var ver *VerifierNode
+var ver *ChallengerNode
 var addrAccount1 = common.HexToAddress("0x048C82fe2C85956Cf2872FBe32bE4AD06de3Db1E")
 var addrAccount2 = common.HexToAddress("0x9185eAE1c5AD845137AaDf34a955e1D676fE421B")
 var addrAccount3 = common.HexToAddress("0x522fE0423db9de4e8Bb88aF3bF24aBE9B7dBF787")

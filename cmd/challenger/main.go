@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -11,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/rogercoll/optimisticrp"
 	"github.com/rogercoll/optimisticrp/bridge"
-	"github.com/rogercoll/optimisticrp/verifier"
+	"github.com/rogercoll/optimisticrp/challenger"
 	"github.com/sirupsen/logrus"
 )
 
@@ -24,39 +23,36 @@ func main() {
 	logger.SetLevel(logrus.DebugLevel)
 	client, err := ethclient.Dial("http://127.0.0.1:8545")
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
-	log.Println("Connected to the ETH client")
-	mybridge, err := bridge.New(common.HexToAddress("0x579142f7FFA674d24C1FEd00Db0Aa39d748Ea5f7"), client, logger)
+	logger.Info("Connected to the ETH client")
+	mybridge, err := bridge.New(common.HexToAddress("0x84Cb561d6cDd8b3697004303e5cda2f7a84b057B"), client, logger)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
-	//TESTING A CLIENT/VERIFIER
-	log.Println(mybridge.GetStateRoot())
-	//TESTING A NEW AGGREGATOR
 	var (
 		diskdb = memorydb.New()
 		triedb = trie.NewDatabase(diskdb)
 	)
 	tr, err := optimisticrp.NewTrie(triedb)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 	privateKey, err := crypto.HexToECDSA("f99f08ed8bf9e51e1f08700cf782a86b43eab54be5f6d0911097e4f300b09e2a")
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
-	myverifier := verifier.New(tr, mybridge, privateKey, logger)
+	challengerNode := challenger.New(tr, mybridge, privateKey, logger)
 	logs := make(chan interface{})
-	go myverifier.VerifyOnChainData(logs)
+	go challengerNode.VerifyOnChainData(logs)
 	for {
 		select {
 		case input := <-logs:
 			switch vlog := input.(type) {
 			case error:
-				log.Fatal(vlog)
+				logger.Fatal(vlog)
 			default:
-				log.Println(vlog)
+				logger.Println(vlog)
 			}
 		}
 	}
