@@ -98,24 +98,38 @@ func (v *ChallengerNode) computeAccountsTrie() (common.Hash, error) {
 	go v.ethContract.GetOnChainData(onChainData)
 	stateRoot := common.Hash{}
 	pendingDeposits := []optimisticrp.Deposit{}
-	var err error
 	for methodData := range onChainData {
 		switch input := methodData.(type) {
 		case optimisticrp.Batch:
 			v.log.Info("New onChain Batch received")
 			//if there is a new batch we MUST update the stateRoot with the previous deposits (rule 1.)
-			for _, deposit := range pendingDeposits {
-				err := optimisticTrie.AddFunds(deposit.From, deposit.Value)
-				if err != nil {
-					return stateRoot, err
-				}
+			isValid, err := v.ethContract.IsStateRootValid(input.StateRoot)
+			if err != nil {
+				return stateRoot, err
 			}
-			pendingDeposits = nil
-			for _, txInBatch := range input.Transactions {
-				stateRoot, err = optimisticTrie.ProcessTx(txInBatch)
-				if err != nil {
-					return stateRoot, err
+			onChainStateRoot, err := v.ethContract.GetStateRoot()
+			if err != nil {
+				return stateRoot, err
+			}
+			if isValid {
+				v.log.Info("Updating accounts state as the provided batch is valid")
+				for _, deposit := range pendingDeposits {
+					err := optimisticTrie.AddFunds(deposit.From, deposit.Value)
+					if err != nil {
+						return stateRoot, err
+					}
 				}
+				pendingDeposits = nil
+				for _, txInBatch := range input.Transactions {
+					stateRoot, err = optimisticTrie.ProcessTx(txInBatch)
+					if err != nil {
+						return stateRoot, err
+					}
+				}
+			} else if !isValid && input.StateRoot == onChainStateRoot {
+				v.log.Warn("Found last submitted batch, looking for a fraud...")
+			} else {
+				v.log.Debug("Skipping invalid onChain batch")
 			}
 		case optimisticrp.Deposit:
 			v.log.WithFields(logrus.Fields{"Account": input.From, "Value": input.Value}).Info("New onChain deposit")
