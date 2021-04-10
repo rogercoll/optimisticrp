@@ -3,6 +3,7 @@ package bridge
 import (
 	"context"
 	"crypto/ecdsa"
+	"fmt"
 	"log"
 	"math/big"
 	"strings"
@@ -15,20 +16,25 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/rogercoll/optimisticrp"
 	store "github.com/rogercoll/optimisticrp/contracts"
+	"github.com/sirupsen/logrus"
 )
 
 type Bridge struct {
 	oriContract *store.Contracts
 	oriAddr     common.Address
 	client      *ethclient.Client
+	log         *logrus.Entry
 }
 
-func New(oriAddr common.Address, ethClient *ethclient.Client) (*Bridge, error) {
+func New(oriAddr common.Address, ethClient *ethclient.Client, logger *logrus.Logger) (*Bridge, error) {
+	bridgeLogger := logger.WithFields(logrus.Fields{
+		"service": "Bridge",
+	})
 	instance, err := store.NewContracts(oriAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
-	return &Bridge{instance, oriAddr, ethClient}, nil
+	return &Bridge{instance, oriAddr, ethClient, bridgeLogger}, nil
 }
 
 func (b *Bridge) Client() *ethclient.Client {
@@ -70,6 +76,14 @@ func (b *Bridge) Withdraw() {
 
 }
 
+func (b *Bridge) IsStateRootValid(state common.Hash) (bool, error) {
+	validStateRoot, err := b.oriContract.ValidStateRoots(nil, state)
+	if err != nil {
+		return false, err
+	}
+	return validStateRoot, nil
+}
+
 //Reads all transactions to the smart contracts and computes the whole accounts trie from scratch
 //This implementation is used for local chains, few blocks. In production (main chain) you shall use an ingestion service to get all the transactions of a given address.
 func (b *Bridge) GetOnChainData(dataChannel chan<- interface{}) {
@@ -78,11 +92,11 @@ func (b *Bridge) GetOnChainData(dataChannel chan<- interface{}) {
 	if err != nil {
 		dataChannel <- err
 	}
-	myAbi, err := abi.JSON(strings.NewReader(abiJsonString))
+	myAbi, err := abi.JSON(strings.NewReader(store.ContractsABI))
 	if err != nil {
 		dataChannel <- err
 	}
-	log.Printf("Analyzing %v blocks\n", header.Number)
+	b.log.Debug(fmt.Sprintf("Analyzing %v blocks\n", header.Number))
 	for i := int64(0); i <= header.Number.Int64(); i++ {
 		block, err := b.client.BlockByNumber(context.Background(), big.NewInt(i))
 		if err != nil {
@@ -103,14 +117,13 @@ func (b *Bridge) GetOnChainData(dataChannel chan<- interface{}) {
 						dataChannel <- err
 					}
 					if method.Name == "newBatch" {
-						log.Println("New batch transaction data detected, reading transactions")
 						data, err := method.Inputs.UnpackValues(argdata)
 						if err != nil {
 							dataChannel <- err
 						}
 						batch, err := optimisticrp.UnMarshalBatch(data[0].([]byte))
 						if err != nil {
-							log.Println("Transaction does not contain a batch, skipping...")
+							b.log.Warn("Unable to unmarshal batch from transaction")
 							continue
 						}
 						dataChannel <- optimisticrp.Batch{batch.PrevStateRoot, batch.StateRoot, batch.Transactions}
@@ -125,7 +138,7 @@ func (b *Bridge) GetOnChainData(dataChannel chan<- interface{}) {
 			}
 		}
 	}
-	log.Printf("All blocks analized")
+	b.log.Info("All blocks analized")
 }
 
 func (b *Bridge) GetPendingDeposits(depChannel chan<- interface{}) {
@@ -134,7 +147,7 @@ func (b *Bridge) GetPendingDeposits(depChannel chan<- interface{}) {
 	if err != nil {
 		depChannel <- err
 	}
-	myAbi, err := abi.JSON(strings.NewReader(abiJsonString))
+	myAbi, err := abi.JSON(strings.NewReader(store.ContractsABI))
 	if err != nil {
 		depChannel <- err
 	}

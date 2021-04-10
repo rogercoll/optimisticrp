@@ -4,11 +4,11 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rogercoll/optimisticrp"
+	"github.com/sirupsen/logrus"
 )
 
 const MAX_TRANSACTIONS_BATCH = 10
@@ -19,13 +19,18 @@ type AggregatorNode struct {
 	ethContract  optimisticrp.OptimisticSContract
 	privKey      *ecdsa.PrivateKey
 	onChainRoot  common.Hash
+	log          *logrus.Entry
 }
 
-func New(newAccountsTrie optimisticrp.Optimistic, newEthContract optimisticrp.OptimisticSContract, privateKey *ecdsa.PrivateKey) *AggregatorNode {
+func New(newAccountsTrie optimisticrp.Optimistic, newEthContract optimisticrp.OptimisticSContract, privateKey *ecdsa.PrivateKey, logger *logrus.Logger) *AggregatorNode {
+	aggregatorLogger := logger.WithFields(logrus.Fields{
+		"service": "Aggregator",
+	})
 	return &AggregatorNode{
 		accountsTrie: newAccountsTrie,
 		ethContract:  newEthContract,
 		privKey:      privateKey,
+		log:          aggregatorLogger,
 	}
 }
 
@@ -42,8 +47,8 @@ func (ag *AggregatorNode) Synced() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	log.Printf("Computed state root: %v", stateRoot)
-	log.Printf("OnChain state root: %v", onChainStateRoot)
+	ag.log.WithFields(logrus.Fields{"StateRoot": stateRoot}).Info("Computed accounts state")
+	ag.log.WithFields(logrus.Fields{"StateRoot": onChainStateRoot}).Info("OnChain accounts state")
 	if stateRoot != onChainStateRoot {
 		return false, fmt.Errorf("Aggregator was not able to compute a valid StateRoot")
 	}
@@ -52,8 +57,12 @@ func (ag *AggregatorNode) Synced() (bool, error) {
 
 //if sendBatch succeeds we should notify all user transactions
 func (ag *AggregatorNode) sendBatch() error {
+	prevStateRoot, err := ag.onChainStateRoot()
+	if err != nil {
+		return err
+	}
 	b := optimisticrp.Batch{
-		PrevStateRoot: ag.onChainRoot,
+		PrevStateRoot: prevStateRoot,
 		StateRoot:     ag.accountsTrie.StateRoot(),
 	}
 	b.StateRoot = ag.accountsTrie.StateRoot()
@@ -94,13 +103,14 @@ func (ag *AggregatorNode) ReceiveTransaction(tx optimisticrp.Transaction) error 
 			}
 		}
 	}
-	_, err := ag.processTx(tx)
+	_, err := ag.maliciousProcessTx(tx)
 	if err != nil {
 		return err
 	}
 	ag.transactions = append(ag.transactions, tx)
+	ag.log.WithFields(logrus.Fields{"From": tx.From, "To": tx.To, "Value:": tx.Value}).Debug("Appended transaction")
 	if len(ag.transactions) == MAX_TRANSACTIONS_BATCH {
-		log.Println("Sending batch")
+		ag.log.Info("Sending batch")
 		err := ag.sendBatch()
 		if err != nil {
 			return err
@@ -135,6 +145,33 @@ func (ag *AggregatorNode) processTx(transaction optimisticrp.Transaction) (commo
 	toAcc.Balance.Add(toAcc.Balance, transaction.Value)
 	fromAcc.Nonce++
 	ag.accountsTrie.UpdateAccount(transaction.From, fromAcc)
+	ag.log.WithFields(logrus.Fields{"Sender": transaction.From, "Remaining balance": fromAcc.Balance}).Debug("Processed transaction")
+	return ag.accountsTrie.UpdateAccount(transaction.To, toAcc), nil
+}
+
+//Malicious processTx which won't check if amount is negative
+func (ag *AggregatorNode) maliciousProcessTx(transaction optimisticrp.Transaction) (common.Hash, error) {
+	fromAcc, err := ag.accountsTrie.GetAccount(transaction.From)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	toAcc, err := ag.accountsTrie.GetAccount(transaction.To)
+	switch err.(type) {
+	case nil:
+	case *optimisticrp.AccountNotFound:
+		toAcc = optimisticrp.Account{Balance: new(big.Int).SetUint64(0), Nonce: 0}
+		ag.accountsTrie.UpdateAccount(transaction.To, toAcc)
+	default:
+		return common.Hash{}, err
+	}
+	if fromAcc.Balance.Cmp(transaction.Value) == -1 {
+		ag.log.Warn("I am a malicious node, and that balance is negative but I won't check it")
+	}
+	fromAcc.Balance.Sub(fromAcc.Balance, transaction.Value)
+	toAcc.Balance.Add(toAcc.Balance, transaction.Value)
+	fromAcc.Nonce++
+	ag.accountsTrie.UpdateAccount(transaction.From, fromAcc)
+	ag.log.WithFields(logrus.Fields{"Sender": transaction.From, "Remaining balance": fromAcc.Balance}).Debug("Processed transaction")
 	return ag.accountsTrie.UpdateAccount(transaction.To, toAcc), nil
 }
 
@@ -160,11 +197,19 @@ func (ag *AggregatorNode) computeAccountsTrie() (common.Hash, error) {
 	go ag.ethContract.GetOnChainData(onChainData)
 	stateRoot := common.Hash{}
 	pendingDeposits := []optimisticrp.Deposit{}
-	var err error
 	for methodData := range onChainData {
 		switch input := methodData.(type) {
 		case optimisticrp.Batch:
-			log.Println("New batch recevied")
+			ag.log.Info("New onChain Batch received")
+			//check if it is a valid batch, if not it does not need to update its trie
+			isValid, err := ag.ethContract.IsStateRootValid(input.StateRoot)
+			if err != nil {
+				return stateRoot, err
+			}
+			if isValid {
+				//next block of code should go here once max time to generate proof is implemented
+			}
+			ag.log.Info("Updating accounts state as the provided batch is valid")
 			//if there is a new batch we MUST update the stateRoot with the previous deposits (rule 1.)
 			for _, deposit := range pendingDeposits {
 				err := ag.addFunds(deposit.From, deposit.Value)
@@ -174,13 +219,13 @@ func (ag *AggregatorNode) computeAccountsTrie() (common.Hash, error) {
 			}
 			pendingDeposits = nil
 			for _, txInBatch := range input.Transactions {
-				stateRoot, err = ag.processTx(txInBatch)
+				stateRoot, err = ag.maliciousProcessTx(txInBatch)
 				if err != nil {
 					return stateRoot, err
 				}
 			}
 		case optimisticrp.Deposit:
-			log.Printf("New deposit recevied from %v\n", input.From)
+			ag.log.WithFields(logrus.Fields{"Account": input.From, "Value": input.Value}).Info("New onChain deposit")
 			pendingDeposits = append(pendingDeposits, input)
 		case error:
 			return stateRoot, input

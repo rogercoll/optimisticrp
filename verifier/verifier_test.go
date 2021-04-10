@@ -1,4 +1,4 @@
-package aggregator
+package verifier
 
 import (
 	"crypto/ecdsa"
@@ -16,7 +16,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var agg *AggregatorNode
+var ver *VerifierNode
 var addrAccount1 = common.HexToAddress("0x048C82fe2C85956Cf2872FBe32bE4AD06de3Db1E")
 var addrAccount2 = common.HexToAddress("0x9185eAE1c5AD845137AaDf34a955e1D676fE421B")
 var addrAccount3 = common.HexToAddress("0x522fE0423db9de4e8Bb88aF3bF24aBE9B7dBF787")
@@ -62,7 +62,7 @@ func (m *mockBridge) GetOnChainData(txChannel chan<- interface{}) {
 	}
 	txs2 := []optimisticrp.Transaction{
 		{
-			From:  addrAccount3,
+			From:  addrAccount2,
 			To:    addrAccount1,
 			Value: big.NewInt(3e+18),
 		},
@@ -82,45 +82,30 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 	mockBridgeContract := mockBridge{}
-	agg = New(tr, &mockBridgeContract, nil, logrus.New())
-	agg.accountsTrie.UpdateAccount(addrAccount1, account1)
+	ver = New(tr, &mockBridgeContract, nil, logrus.New())
+	ver.accountsTrie.UpdateAccount(addrAccount1, account1)
 	m.Run()
 }
 
-func TestActualNonce(t *testing.T) {
-	got, err := agg.ActualNonce(addrAccount1)
-	if err != nil {
-		t.Error(err)
-	}
-	if got != account1.Nonce {
-		t.Errorf("Nonce = %d; want %d", got, account1.Nonce)
-	}
-}
-
 func TestComputeAccountsTrie(t *testing.T) {
-	oldStateRoot := agg.accountsTrie.StateRoot()
-	newStateRoot, err := agg.computeAccountsTrie()
-	if err != nil {
-		t.Error(err)
-	}
-	if newStateRoot == oldStateRoot {
-		t.Errorf("NewStateRoot = %v; must be different than %v", newStateRoot, oldStateRoot)
-	}
-	nonceSender, err := agg.ActualNonce(addrAccount1)
-	if err != nil {
-		t.Error(err)
-	}
-	if nonceSender != 2 {
-		t.Errorf("Nonce = %d; want %d", nonceSender, 2)
-	}
-}
-
-func TestSendBatch(t *testing.T) {
-	for i := 0; i < MAX_TRANSACTIONS_BATCH; i++ {
-		tx := optimisticrp.Transaction{Value: big.NewInt(1e+18), Gas: big.NewInt(1e+18), To: addrAccount2, From: addrAccount1}
-		err := agg.ReceiveTransaction(tx)
-		if err != nil {
-			t.Error(err)
+	logs := make(chan interface{})
+	go ver.VerifyOnChainData(logs)
+	for {
+		select {
+		case input := <-logs:
+			switch vlog := input.(type) {
+			case error:
+				got, ok := vlog.(*optimisticrp.InvalidBalance)
+				if !ok {
+					t.Fatal("Error not properly handled")
+				}
+				if got.Addr != addrAccount2 {
+					t.Fatal("Wrong attacker detected")
+				}
+				t.SkipNow()
+			default:
+				t.Fatal("Invalid transaction included in the last batch and not detected!")
+			}
 		}
 	}
 }

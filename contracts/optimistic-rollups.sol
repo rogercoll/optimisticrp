@@ -13,7 +13,7 @@ contract Optimistic_Rollups {
     uint256 public immutable lock_time;
     uint256 public immutable required_bond;
     mapping(address => address) public aggregators;
-    bytes32[] public valid_stateRoots;
+    mapping(bytes32 => bool) public valid_stateRoots;
     
     mapping(address => mapping(bytes32 => uint256)) private last_deposits;
     event New_Deposit(address user, bytes32 stateRoot, uint256 value);
@@ -49,6 +49,7 @@ contract Optimistic_Rollups {
     
     //[248, 95, 160, 48, 90, 96, 180, 15, 169, 0, 12, 30, 160, 135, 133, 84, 61, 18, 113, 22, 62, 245, 86, 20, 148, 103, 136, 32, 124, 139, 204, 83, 60, 79, 110, 248, 60, 248, 58, 136, 13, 224, 182, 179, 167, 100, 0, 0, 133, 11, 164, 59, 116, 0, 148, 139, 80, 60, 161, 190, 245, 90, 144, 66, 118, 19, 143, 46, 166, 9, 6, 210, 197, 135, 129, 148, 4, 140, 130, 254, 44, 133, 149, 108, 242, 135, 47, 190, 50, 190, 74, 208, 109, 227, 219, 30, 1]
     function newBatch(bytes calldata _batch) external is_aggregator(msg.sender) returns (string memory) {
+        //here we should check if fraud proof time has expired
         require(_batch.length > 0, "EMPTY_NEW_BATCH");
         Lib_RLPReader.RLPItem[] memory ls = Lib_RLPReader.readList(_batch);
         Lib_RLPReader.RLPItem memory _stateRoot = ls[0];
@@ -58,7 +59,7 @@ contract Optimistic_Rollups {
         stateRoot = abi.decode(Lib_RLPReader.readBytes(_newstateRoot), (bytes32));
         lastBatch = _batch;
         //At this point we consider the prevBatch as correct
-        valid_stateRoots.push(prev_stateRoot);
+        valid_stateRoots[prev_stateRoot] = true;
     }
     
     //account_proof must contain a proof of the account balance for the previous stateRoot

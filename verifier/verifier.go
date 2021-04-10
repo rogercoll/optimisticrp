@@ -4,11 +4,11 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rogercoll/optimisticrp"
+	"github.com/sirupsen/logrus"
 )
 
 type VerifierNode struct {
@@ -16,18 +16,24 @@ type VerifierNode struct {
 	ethContract  optimisticrp.OptimisticSContract
 	privKey      *ecdsa.PrivateKey
 	onChainRoot  common.Hash
+	log          *logrus.Entry
 }
 
-func New(newAccountsTrie optimisticrp.Optimistic, newEthContract optimisticrp.OptimisticSContract, privateKey *ecdsa.PrivateKey) *VerifierNode {
+func New(newAccountsTrie optimisticrp.Optimistic, newEthContract optimisticrp.OptimisticSContract, privateKey *ecdsa.PrivateKey, logger *logrus.Logger) *VerifierNode {
+	challengerLogger := logger.WithFields(logrus.Fields{
+		"service": "Challenger",
+	})
 	return &VerifierNode{
 		accountsTrie: newAccountsTrie,
 		ethContract:  newEthContract,
 		privKey:      privateKey,
+		log:          challengerLogger,
 	}
 }
 
 //Sync with on-chain smart contract
 func (v *VerifierNode) Synced() (bool, error) {
+	v.log.Info("Starting sync process with onchain data")
 	onChainStateRoot, err := v.ethContract.GetStateRoot()
 	if err != nil {
 		return false, err
@@ -39,8 +45,8 @@ func (v *VerifierNode) Synced() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	log.Printf("Computed state root: %v", stateRoot)
-	log.Printf("OnChain state root: %v", onChainStateRoot)
+	v.log.WithFields(logrus.Fields{"StateRoot": stateRoot}).Info("Computed accounts state")
+	v.log.WithFields(logrus.Fields{"StateRoot": onChainStateRoot}).Info("OnChain accounts state")
 	if stateRoot != onChainStateRoot {
 		return false, fmt.Errorf("Aggregator was not able to compute a valid StateRoot")
 	}
@@ -55,8 +61,8 @@ func (v *VerifierNode) generateProof(acc common.Address) {
 	}
 }
 
-func (v *VerifierNode) VerifyOnChainData(logs chan<- interface{}) {
-	defer close(logs)
+func (v *VerifierNode) VerifyOnChainData(errs chan<- interface{}) {
+	defer close(errs)
 	//Every 20 seconds scan the chain looking for new batches with errors
 	ticker := time.NewTicker(5 * time.Second)
 	quit := make(chan struct{})
@@ -66,14 +72,14 @@ func (v *VerifierNode) VerifyOnChainData(logs chan<- interface{}) {
 		case <-ticker.C:
 			isSync, err := v.Synced()
 			if err != nil {
-				logs <- err
+				errs <- err
 				//we shall continue as maybe there was a network error
 				continue
 			} else if isSync == false {
-				logs <- fmt.Errorf("Not synced with onChain data")
+				errs <- fmt.Errorf("Not synced with onChain data")
 				continue
 			}
-			logs <- "All onChain data verified"
+			v.log.Info("All onChain data verified")
 		case <-quit:
 			ticker.Stop()
 			return
@@ -96,7 +102,7 @@ func (v *VerifierNode) computeAccountsTrie() (common.Hash, error) {
 	for methodData := range onChainData {
 		switch input := methodData.(type) {
 		case optimisticrp.Batch:
-			log.Println("New batch recevied")
+			v.log.Info("New onChain Batch received")
 			//if there is a new batch we MUST update the stateRoot with the previous deposits (rule 1.)
 			for _, deposit := range pendingDeposits {
 				err := optimisticTrie.AddFunds(deposit.From, deposit.Value)
@@ -112,7 +118,7 @@ func (v *VerifierNode) computeAccountsTrie() (common.Hash, error) {
 				}
 			}
 		case optimisticrp.Deposit:
-			log.Printf("New deposit recevied from %v\n", input.From)
+			v.log.WithFields(logrus.Fields{"Account": input.From, "Value": input.Value}).Info("New onChain deposit")
 			pendingDeposits = append(pendingDeposits, input)
 		case error:
 			return stateRoot, input
@@ -121,5 +127,6 @@ func (v *VerifierNode) computeAccountsTrie() (common.Hash, error) {
 			return common.Hash{}, errors.New("There was an error while fetching onChain data")
 		}
 	}
+	v.log.Info("Finished analyzing onChian data")
 	return stateRoot, nil
 }

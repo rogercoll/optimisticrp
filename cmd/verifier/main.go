@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -11,18 +12,22 @@ import (
 	"github.com/rogercoll/optimisticrp"
 	"github.com/rogercoll/optimisticrp/bridge"
 	"github.com/rogercoll/optimisticrp/verifier"
+	"github.com/sirupsen/logrus"
 )
 
 var addrAccount1 = common.HexToAddress("0x048C82fe2C85956Cf2872FBe32bE4AD06de3Db1E")
 var addrAccount2 = common.HexToAddress("0x9185eAE1c5AD845137AaDf34a955e1D676fE421B")
 
 func main() {
+	var logger = logrus.New()
+	logger.SetOutput(os.Stdout)
+	logger.SetLevel(logrus.DebugLevel)
 	client, err := ethclient.Dial("http://127.0.0.1:8545")
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Println("Connected to the ETH client")
-	mybridge, err := bridge.New(common.HexToAddress("0x6E5145ed29Fa700f9d7c5de5F3A0Ba183926d3b9"), client)
+	mybridge, err := bridge.New(common.HexToAddress("0x579142f7FFA674d24C1FEd00Db0Aa39d748Ea5f7"), client, logger)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -41,7 +46,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	myverifier := verifier.New(tr, mybridge, privateKey)
+	myverifier := verifier.New(tr, mybridge, privateKey, logger)
 	logs := make(chan interface{})
 	go myverifier.VerifyOnChainData(logs)
 	for {

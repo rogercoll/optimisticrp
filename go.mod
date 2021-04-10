@@ -7,4 +7,5 @@ require (
 	github.com/pki-io/core v0.0.0-20170212075412-5f4467c73283
 	github.com/pki-io/ecies v0.0.0-20150213224233-7c0f4a9b18d9 // indirect
 	github.com/pulumi/pulumi/sdk v1.14.1 // indirect
+	github.com/sirupsen/logrus v1.4.1
 )

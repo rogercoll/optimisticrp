@@ -61,6 +61,7 @@ type OptimisticSContract interface {
 	GetStateRoot() (common.Hash, error)
 	GetOnChainData(chan<- interface{})
 	GetPendingDeposits(chan<- interface{})
+	IsStateRootValid(common.Hash) (bool, error)
 	PrepareTxOptions(*big.Int, *big.Int, *big.Int, *ecdsa.PrivateKey) (*bind.TransactOpts, error)
 	NewBatch(Batch, *bind.TransactOpts) (*types.Transaction, error)
 	FraudProof()

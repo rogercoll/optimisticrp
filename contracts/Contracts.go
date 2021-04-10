@@ -27,7 +27,7 @@ var (
 )
 
 // ContractsABI is the input ABI used to generate the binding from.
-const ContractsABI = "[{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_lock_time\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_required_bond\",\"type\":\"uint256\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"user\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"stateRoot\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"New_Deposit\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"deposit\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getStateRoot\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"lock_time\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"_batch\",\"type\":\"bytes\"}],\"name\":\"newBatch\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"_hash\",\"type\":\"bytes\"}],\"name\":\"readHash\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"_hash\",\"type\":\"bytes\"}],\"name\":\"readHashRLP\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"required_bond\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"stateRoot\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]"
+const ContractsABI = "[{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_lock_time\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_required_bond\",\"type\":\"uint256\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"user\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"stateRoot\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"value\",\"type\":\"uint256\"}],\"name\":\"New_Deposit\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"aggregators\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"bond\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"deposit\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getStateRoot\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"lock_time\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"_batch\",\"type\":\"bytes\"}],\"name\":\"newBatch\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"prev_stateRoot\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"_key\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"_value\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"_proof\",\"type\":\"bytes\"},{\"internalType\":\"bytes32\",\"name\":\"_root\",\"type\":\"bytes32\"}],\"name\":\"prove_fraud\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"_hash\",\"type\":\"bytes\"}],\"name\":\"readHash\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"_hash\",\"type\":\"bytes\"}],\"name\":\"readHashRLP\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"required_bond\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"stateRoot\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"name\":\"valid_stateRoots\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"}]"
 
 // Contracts is an auto generated Go binding around an Ethereum contract.
 type Contracts struct {
@@ -171,6 +171,37 @@ func (_Contracts *ContractsTransactorRaw) Transact(opts *bind.TransactOpts, meth
 	return _Contracts.Contract.contract.Transact(opts, method, params...)
 }
 
+// Aggregators is a free data retrieval call binding the contract method 0x112cdab9.
+//
+// Solidity: function aggregators(address ) view returns(address)
+func (_Contracts *ContractsCaller) Aggregators(opts *bind.CallOpts, arg0 common.Address) (common.Address, error) {
+	var out []interface{}
+	err := _Contracts.contract.Call(opts, &out, "aggregators", arg0)
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// Aggregators is a free data retrieval call binding the contract method 0x112cdab9.
+//
+// Solidity: function aggregators(address ) view returns(address)
+func (_Contracts *ContractsSession) Aggregators(arg0 common.Address) (common.Address, error) {
+	return _Contracts.Contract.Aggregators(&_Contracts.CallOpts, arg0)
+}
+
+// Aggregators is a free data retrieval call binding the contract method 0x112cdab9.
+//
+// Solidity: function aggregators(address ) view returns(address)
+func (_Contracts *ContractsCallerSession) Aggregators(arg0 common.Address) (common.Address, error) {
+	return _Contracts.Contract.Aggregators(&_Contracts.CallOpts, arg0)
+}
+
 // GetStateRoot is a free data retrieval call binding the contract method 0xcd605a1a.
 //
 // Solidity: function getStateRoot() view returns(bytes32)
@@ -231,6 +262,37 @@ func (_Contracts *ContractsSession) LockTime() (*big.Int, error) {
 // Solidity: function lock_time() view returns(uint256)
 func (_Contracts *ContractsCallerSession) LockTime() (*big.Int, error) {
 	return _Contracts.Contract.LockTime(&_Contracts.CallOpts)
+}
+
+// PrevStateRoot is a free data retrieval call binding the contract method 0xf53b28aa.
+//
+// Solidity: function prev_stateRoot() view returns(bytes32)
+func (_Contracts *ContractsCaller) PrevStateRoot(opts *bind.CallOpts) ([32]byte, error) {
+	var out []interface{}
+	err := _Contracts.contract.Call(opts, &out, "prev_stateRoot")
+
+	if err != nil {
+		return *new([32]byte), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new([32]byte)).(*[32]byte)
+
+	return out0, err
+
+}
+
+// PrevStateRoot is a free data retrieval call binding the contract method 0xf53b28aa.
+//
+// Solidity: function prev_stateRoot() view returns(bytes32)
+func (_Contracts *ContractsSession) PrevStateRoot() ([32]byte, error) {
+	return _Contracts.Contract.PrevStateRoot(&_Contracts.CallOpts)
+}
+
+// PrevStateRoot is a free data retrieval call binding the contract method 0xf53b28aa.
+//
+// Solidity: function prev_stateRoot() view returns(bytes32)
+func (_Contracts *ContractsCallerSession) PrevStateRoot() ([32]byte, error) {
+	return _Contracts.Contract.PrevStateRoot(&_Contracts.CallOpts)
 }
 
 // RequiredBond is a free data retrieval call binding the contract method 0xb2055400.
@@ -295,6 +357,58 @@ func (_Contracts *ContractsCallerSession) StateRoot() ([32]byte, error) {
 	return _Contracts.Contract.StateRoot(&_Contracts.CallOpts)
 }
 
+// ValidStateRoots is a free data retrieval call binding the contract method 0xe4481e9c.
+//
+// Solidity: function valid_stateRoots(bytes32 ) view returns(bool)
+func (_Contracts *ContractsCaller) ValidStateRoots(opts *bind.CallOpts, arg0 [32]byte) (bool, error) {
+	var out []interface{}
+	err := _Contracts.contract.Call(opts, &out, "valid_stateRoots", arg0)
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
+}
+
+// ValidStateRoots is a free data retrieval call binding the contract method 0xe4481e9c.
+//
+// Solidity: function valid_stateRoots(bytes32 ) view returns(bool)
+func (_Contracts *ContractsSession) ValidStateRoots(arg0 [32]byte) (bool, error) {
+	return _Contracts.Contract.ValidStateRoots(&_Contracts.CallOpts, arg0)
+}
+
+// ValidStateRoots is a free data retrieval call binding the contract method 0xe4481e9c.
+//
+// Solidity: function valid_stateRoots(bytes32 ) view returns(bool)
+func (_Contracts *ContractsCallerSession) ValidStateRoots(arg0 [32]byte) (bool, error) {
+	return _Contracts.Contract.ValidStateRoots(&_Contracts.CallOpts, arg0)
+}
+
+// Bond is a paid mutator transaction binding the contract method 0x64c9ec6f.
+//
+// Solidity: function bond() payable returns()
+func (_Contracts *ContractsTransactor) Bond(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _Contracts.contract.Transact(opts, "bond")
+}
+
+// Bond is a paid mutator transaction binding the contract method 0x64c9ec6f.
+//
+// Solidity: function bond() payable returns()
+func (_Contracts *ContractsSession) Bond() (*types.Transaction, error) {
+	return _Contracts.Contract.Bond(&_Contracts.TransactOpts)
+}
+
+// Bond is a paid mutator transaction binding the contract method 0x64c9ec6f.
+//
+// Solidity: function bond() payable returns()
+func (_Contracts *ContractsTransactorSession) Bond() (*types.Transaction, error) {
+	return _Contracts.Contract.Bond(&_Contracts.TransactOpts)
+}
+
 // Deposit is a paid mutator transaction binding the contract method 0xd0e30db0.
 //
 // Solidity: function deposit() payable returns()
@@ -335,6 +449,27 @@ func (_Contracts *ContractsSession) NewBatch(_batch []byte) (*types.Transaction,
 // Solidity: function newBatch(bytes _batch) returns(string)
 func (_Contracts *ContractsTransactorSession) NewBatch(_batch []byte) (*types.Transaction, error) {
 	return _Contracts.Contract.NewBatch(&_Contracts.TransactOpts, _batch)
+}
+
+// ProveFraud is a paid mutator transaction binding the contract method 0x3af17ed8.
+//
+// Solidity: function prove_fraud(bytes _key, bytes _value, bytes _proof, bytes32 _root) returns()
+func (_Contracts *ContractsTransactor) ProveFraud(opts *bind.TransactOpts, _key []byte, _value []byte, _proof []byte, _root [32]byte) (*types.Transaction, error) {
+	return _Contracts.contract.Transact(opts, "prove_fraud", _key, _value, _proof, _root)
+}
+
+// ProveFraud is a paid mutator transaction binding the contract method 0x3af17ed8.
+//
+// Solidity: function prove_fraud(bytes _key, bytes _value, bytes _proof, bytes32 _root) returns()
+func (_Contracts *ContractsSession) ProveFraud(_key []byte, _value []byte, _proof []byte, _root [32]byte) (*types.Transaction, error) {
+	return _Contracts.Contract.ProveFraud(&_Contracts.TransactOpts, _key, _value, _proof, _root)
+}
+
+// ProveFraud is a paid mutator transaction binding the contract method 0x3af17ed8.
+//
+// Solidity: function prove_fraud(bytes _key, bytes _value, bytes _proof, bytes32 _root) returns()
+func (_Contracts *ContractsTransactorSession) ProveFraud(_key []byte, _value []byte, _proof []byte, _root [32]byte) (*types.Transaction, error) {
+	return _Contracts.Contract.ProveFraud(&_Contracts.TransactOpts, _key, _value, _proof, _root)
 }
 
 // ReadHash is a paid mutator transaction binding the contract method 0xb05146b4.
