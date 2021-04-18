@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/rogercoll/optimisticrp"
 	store "github.com/rogercoll/optimisticrp/contracts"
 	"github.com/sirupsen/logrus"
@@ -49,9 +50,9 @@ func (b *Bridge) GetStateRoot() (common.Hash, error) {
 	return onChainStateRoot, nil
 }
 
-func (b *Bridge) NewBatch(batch optimisticrp.Batch, txOpts *bind.TransactOpts) (*types.Transaction, error) {
+func (b *Bridge) NewBatch(batch optimisticrp.SolidityBatch, txOpts *bind.TransactOpts) (*types.Transaction, error) {
 	log.Println(batch)
-	result, err := batch.MarshalBinary()
+	result, err := rlp.EncodeToBytes(batch)
 	if err != nil {
 		return nil, err
 	}
@@ -121,12 +122,13 @@ func (b *Bridge) GetOnChainData(dataChannel chan<- interface{}) {
 						if err != nil {
 							dataChannel <- err
 						}
-						batch, err := optimisticrp.UnMarshalBatch(data[0].([]byte))
+						var batch optimisticrp.SolidityBatch
+						err = rlp.DecodeBytes(data[0].([]byte), &batch)
 						if err != nil {
 							b.log.Warn("Unable to unmarshal batch from transaction")
 							continue
 						}
-						dataChannel <- optimisticrp.Batch{batch.PrevStateRoot, batch.StateRoot, batch.Transactions}
+						dataChannel <- batch
 					} else if method.Name == "deposit" {
 						msg, err := tx.AsMessage(types.NewEIP155Signer(tx.ChainId()))
 						if err != nil {

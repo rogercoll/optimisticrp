@@ -3,6 +3,7 @@
 pragma solidity >=0.6.0 <=0.7.3;
 
 import { Lib_MerkleTrie } from "./Lib_MerkleTrie.sol";
+import { Lib_BytesUtils } from "./Lib_BytesUtils.sol";
 import { Lib_RLPReader } from "./Lib_RLPReader.sol";
 
 contract Optimistic_Rollups {
@@ -17,6 +18,15 @@ contract Optimistic_Rollups {
     
     mapping(address => mapping(bytes32 => uint256)) private last_deposits;
     event New_Deposit(address user, bytes32 stateRoot, uint256 value);
+    event Fraud_Proved(address challenger);
+    event Invalid_Proof(address challenger);
+
+
+    uint256 public tmpTest;
+    bytes32 public fraudAcc;
+    uint256 public fraudBalance;
+    uint256 public fraudNonce;
+    uint256 public fraudDone;
 
 
     constructor(
@@ -64,26 +74,83 @@ contract Optimistic_Rollups {
     
     //account_proof must contain a proof of the account balance for the previous stateRoot
     function prove_fraud(bytes calldata _key, bytes calldata _value, bytes memory _proof, bytes32 _root) external {
+        //Check proof
         require(_root == prev_stateRoot && stateRoot != prev_stateRoot, "NOT_VALID_PROOF");
         require(Lib_MerkleTrie.verifyInclusionProof(_key,_value,_proof,_root) == true, "INVALID_ACCOUNT_PROOF");
         
-        bytes32 accHash = keccak256(_key);
-        uint256 accValue = abi.decode(_value, (uint256));
+        //Extractic account values
+        bytes32 accAddr = keccak256(_key); //we will compare with the hash of the bytes representing the account
+        Lib_RLPReader.RLPItem[] memory account = Lib_RLPReader.readList(_value);
+        uint256 accBalance = Lib_BytesUtils.toUint256(Lib_RLPReader.readBytes(account[1]));
+        //uint256 accNonce = Lib_BytesUtils.toUint256(Lib_RLPReader.readBytes(account[0]));
+        fraudBalance = accBalance;
+        fraudAcc = accAddr;
+        //fraudNonce = accNonce;
+        
         //Now we must verify the value of the account after the applyed batch
         Lib_RLPReader.RLPItem[] memory ls = Lib_RLPReader.readList(lastBatch);
         Lib_RLPReader.RLPItem[] memory transactions = Lib_RLPReader.readList(ls[2]);
         for (uint256 i = 0; i < transactions.length; i++) {
-                    Lib_RLPReader.RLPItem[] memory tx_data = Lib_RLPReader.readList(transactions[i]);
-                    //if is the receipent
-                    if (keccak256(Lib_RLPReader.readBytes(tx_data[2])) == accHash) {
-                        accValue += abi.decode(Lib_RLPReader.readBytes(tx_data[1]), (uint256));
-                    } else if (keccak256(Lib_RLPReader.readBytes(tx_data[3])) == accHash) {
-                        accValue -= abi.decode(Lib_RLPReader.readBytes(tx_data[1]), (uint256));
-                    }
+            Lib_RLPReader.RLPItem[] memory tx_data = Lib_RLPReader.readList(transactions[i]);
+            //if is the receipent
+            if (keccak256(Lib_RLPReader.readBytes(tx_data[2])) == accAddr) {
+                accBalance += Lib_BytesUtils.toUint256(Lib_RLPReader.readBytes(tx_data[1]));
+            } else if (keccak256(Lib_RLPReader.readBytes(tx_data[3])) == accAddr) {
+                uint256 txValue = abi.decode(Lib_RLPReader.readBytes(tx_data[1]), (uint256));
+                if (txValue > accBalance) {
+                    emit Fraud_Proved(msg.sender);
+                    stateRoot = prev_stateRoot;
+                    fraudDone = 3;
+                    msg.sender.transfer(required_bond);
+                    return;
+                }
+                accBalance -= txValue;
+            }
         }
+        emit Invalid_Proof(msg.sender);
+
         //if fraud is proved => change to the last apporved stateRoot and reward the prover
-        stateRoot = prev_stateRoot;
-        msg.sender.transfer(required_bond);
+    }
+    
+    function readUser(bytes calldata _value) public {
+        Lib_RLPReader.RLPItem[] memory account = Lib_RLPReader.readList(_value);
+        uint256 accBalance = Lib_BytesUtils.toUint256(Lib_RLPReader.readBytes(account[1]));
+        fraudBalance = accBalance;
+    }
+    
+    function readAddr (bytes calldata  _key) public pure returns (address x) {
+        assembly {
+            x := mload(0x94)
+        }
+    }
+    
+    function decode(bytes memory _encoded) public pure returns (address x, address y) {
+        assembly {
+            x := mload(0x94)
+            y := mload(0xa8)
+        }
+    }
+    
+    function toUint256(
+        bytes memory _bytes
+    )
+        public
+        returns (uint256)
+    {
+        tmpTest = Lib_BytesUtils.toUint256(_bytes);
+        return tmpTest;
+    }
+    
+    function simpleTest() public returns (uint256) {
+        tmpTest = 160;
+        return tmpTest;    
+    
+    }
+    
+    function simpleTest2(uint256 a) public returns (uint256) {
+        tmpTest = a;
+        return tmpTest;    
+    
     }
     
     //[160,48,90,96,180,15,169,0,12,30,160,135,133,84,61,18,113,22,62,245,86,20,148,103,136,32,124,139,204,83,60,79,110]

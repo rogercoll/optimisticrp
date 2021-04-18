@@ -14,12 +14,13 @@ import (
 const MAX_TRANSACTIONS_BATCH = 10
 
 type AggregatorNode struct {
-	transactions []optimisticrp.Transaction
-	accountsTrie optimisticrp.Optimistic
-	ethContract  optimisticrp.OptimisticSContract
-	privKey      *ecdsa.PrivateKey
-	onChainRoot  common.Hash
-	log          *logrus.Entry
+	transactions    []optimisticrp.Transaction
+	pendingDeposits []optimisticrp.Deposit
+	accountsTrie    optimisticrp.Optimistic
+	ethContract     optimisticrp.OptimisticSContract
+	privKey         *ecdsa.PrivateKey
+	onChainRoot     common.Hash
+	log             *logrus.Entry
 }
 
 func New(newAccountsTrie optimisticrp.Optimistic, newEthContract optimisticrp.OptimisticSContract, privateKey *ecdsa.PrivateKey, logger *logrus.Logger) *AggregatorNode {
@@ -43,10 +44,11 @@ func (ag *AggregatorNode) Synced() (bool, error) {
 	if onChainStateRoot == ag.accountsTrie.StateRoot() {
 		return true, nil
 	}
-	stateRoot, err := ag.computeAccountsTrie()
+	stateRoot, pendingDeposits, err := ag.computeAccountsTrie()
 	if err != nil {
 		return false, err
 	}
+	ag.pendingDeposits = pendingDeposits
 	ag.log.WithFields(logrus.Fields{"StateRoot": stateRoot}).Info("Computed accounts state")
 	ag.log.WithFields(logrus.Fields{"StateRoot": onChainStateRoot}).Info("OnChain accounts state")
 	if stateRoot != onChainStateRoot {
@@ -61,6 +63,18 @@ func (ag *AggregatorNode) sendBatch() error {
 	if err != nil {
 		return err
 	}
+	for _, deposit := range ag.pendingDeposits {
+		err := ag.addFunds(deposit.From, deposit.Value)
+		if err != nil {
+			return err
+		}
+	}
+	for _, tx := range ag.transactions {
+		_, err := ag.maliciousProcessTx(tx)
+		if err != nil {
+			return err
+		}
+	}
 	b := optimisticrp.Batch{
 		PrevStateRoot: prevStateRoot,
 		StateRoot:     ag.accountsTrie.StateRoot(),
@@ -71,7 +85,7 @@ func (ag *AggregatorNode) sendBatch() error {
 	if err != nil {
 		return err
 	}
-	_, err = ag.ethContract.NewBatch(b, txOpts)
+	_, err = ag.ethContract.NewBatch(b.SolidityFormat(), txOpts)
 	if err != nil {
 		return err
 	}
@@ -88,32 +102,17 @@ func (ag *AggregatorNode) ActualNonce(acc common.Address) (uint64, error) {
 }
 
 func (ag *AggregatorNode) ReceiveTransaction(tx optimisticrp.Transaction) error {
-	if len(ag.transactions) == 0 {
-		pendingDeposits := make(chan interface{})
-		go ag.ethContract.GetPendingDeposits(pendingDeposits)
-		for deposit := range pendingDeposits {
-			switch input := deposit.(type) {
-			case optimisticrp.Deposit:
-				err := ag.addFunds(input.From, input.Value)
-				if err != nil {
-					return err
-				}
-			case error:
-				return input
-			}
-		}
-	}
-	_, err := ag.maliciousProcessTx(tx)
-	if err != nil {
-		return err
-	}
 	ag.transactions = append(ag.transactions, tx)
 	ag.log.WithFields(logrus.Fields{"From": tx.From, "To": tx.To, "Value:": tx.Value}).Debug("Appended transaction")
 	if len(ag.transactions) == MAX_TRANSACTIONS_BATCH {
-		ag.log.Info("Sending batch")
-		err := ag.sendBatch()
-		if err != nil {
-			return err
+		ag.log.Info("Preparing and sending batch")
+		if ok, err := ag.Synced(); ok {
+			err := ag.sendBatch()
+			if err != nil {
+				return err
+			}
+		} else {
+			ag.log.Fatal(err)
 		}
 	}
 	return nil
@@ -145,7 +144,7 @@ func (ag *AggregatorNode) processTx(transaction optimisticrp.Transaction) (commo
 	toAcc.Balance.Add(toAcc.Balance, transaction.Value)
 	fromAcc.Nonce++
 	ag.accountsTrie.UpdateAccount(transaction.From, fromAcc)
-	ag.log.WithFields(logrus.Fields{"Sender": transaction.From, "Remaining balance": fromAcc.Balance}).Debug("Processed transaction")
+	ag.log.WithFields(logrus.Fields{"Value": transaction.Value, "Sender": transaction.From, "Remaining balance": fromAcc.Balance}).Debug("Processed transaction")
 	return ag.accountsTrie.UpdateAccount(transaction.To, toAcc), nil
 }
 
@@ -166,6 +165,8 @@ func (ag *AggregatorNode) maliciousProcessTx(transaction optimisticrp.Transactio
 	}
 	if fromAcc.Balance.Cmp(transaction.Value) == -1 {
 		ag.log.Warn("I am a malicious node, and that balance is negative but I won't check it")
+		//setting balance to value as negative big.int cannot be rlp decoded
+		fromAcc.Balance.Add(fromAcc.Balance, transaction.Value)
 	}
 	fromAcc.Balance.Sub(fromAcc.Balance, transaction.Value)
 	toAcc.Balance.Add(toAcc.Balance, transaction.Value)
@@ -192,19 +193,23 @@ func (ag *AggregatorNode) addFunds(account common.Address, value *big.Int) error
 }
 
 //Reads all transactions to the smart contracts and computes the whole accounts trie from scratch
-func (ag *AggregatorNode) computeAccountsTrie() (common.Hash, error) {
+func (ag *AggregatorNode) computeAccountsTrie() (common.Hash, []optimisticrp.Deposit, error) {
 	onChainData := make(chan interface{})
 	go ag.ethContract.GetOnChainData(onChainData)
 	stateRoot := common.Hash{}
 	pendingDeposits := []optimisticrp.Deposit{}
 	for methodData := range onChainData {
 		switch input := methodData.(type) {
-		case optimisticrp.Batch:
+		case optimisticrp.SolidityBatch:
+			batch, err := input.ToGolangFormat()
+			if err != nil {
+				return stateRoot, nil, err
+			}
 			ag.log.Info("New onChain Batch received")
 			//check if it is a valid batch, if not it does not need to update its trie
-			isValid, err := ag.ethContract.IsStateRootValid(input.StateRoot)
+			isValid, err := ag.ethContract.IsStateRootValid(batch.StateRoot)
 			if err != nil {
-				return stateRoot, err
+				return stateRoot, nil, err
 			}
 			if isValid {
 				//next block of code should go here once max time to generate proof is implemented
@@ -214,25 +219,26 @@ func (ag *AggregatorNode) computeAccountsTrie() (common.Hash, error) {
 			for _, deposit := range pendingDeposits {
 				err := ag.addFunds(deposit.From, deposit.Value)
 				if err != nil {
-					return stateRoot, err
+					return stateRoot, nil, err
 				}
 			}
 			pendingDeposits = nil
-			for _, txInBatch := range input.Transactions {
+			for _, txInBatch := range batch.Transactions {
 				stateRoot, err = ag.maliciousProcessTx(txInBatch)
 				if err != nil {
-					return stateRoot, err
+					return stateRoot, nil, err
 				}
 			}
+			ag.log.Warn(stateRoot)
 		case optimisticrp.Deposit:
 			ag.log.WithFields(logrus.Fields{"Account": input.From, "Value": input.Value}).Info("New onChain deposit")
 			pendingDeposits = append(pendingDeposits, input)
 		case error:
-			return stateRoot, input
+			return stateRoot, nil, input
 
 		default:
-			return common.Hash{}, errors.New("There was an error while fetching onChain data")
+			return common.Hash{}, nil, errors.New("There was an error while fetching onChain data")
 		}
 	}
-	return stateRoot, nil
+	return stateRoot, pendingDeposits, nil
 }

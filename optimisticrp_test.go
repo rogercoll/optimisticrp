@@ -17,6 +17,10 @@ var (
 	acc2     = Account{Balance: new(big.Int).SetUint64(3e+18), Nonce: 2}
 	address3 = common.HexToAddress("0xC13e6F31259B8Bbe94f6311b5EC1Fa36DfdEC5eB")
 	acc3     = Account{Balance: new(big.Int).SetUint64(1e+18), Nonce: 3}
+	address4 = common.HexToAddress("0xB23e6F31259B8Bbe94f6311b5EC1Fa36DfdEC5eB")
+	acc4     = Account{Balance: new(big.Int).SetUint64(1e+18), Nonce: 1}
+	address5 = common.HexToAddress("0x193e6F31259B8Bbe94f6311b5EC1Fa36DfdEC5eB")
+	acc5     = Account{Balance: new(big.Int).SetUint64(1e+18), Nonce: 5}
 )
 
 func TestNewProve(t *testing.T) {
@@ -31,7 +35,9 @@ func TestNewProve(t *testing.T) {
 	_ = tr.UpdateAccount(address1, acc1)
 	_ = tr.UpdateAccount(address2, acc2)
 	_ = tr.UpdateAccount(address3, acc3)
-	toSend, err := tr.NewProve(address1)
+	_ = tr.UpdateAccount(address4, acc4)
+	_ = tr.UpdateAccount(address5, acc5)
+	toSend, err := tr.NewProve(address3)
 	if err != nil {
 		t.Log(err)
 	}

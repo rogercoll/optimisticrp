@@ -1,9 +1,13 @@
 package optimisticrp
 
 import (
+	"bytes"
+	"fmt"
+	"log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb/memorydb"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
@@ -23,19 +27,24 @@ func NewTrie(triedb *trie.Database) (*OptimisticTrie, error) {
 
 func (ot *OptimisticTrie) GetAccount(address common.Address) (Account, error) {
 	fBytes := ot.Get(address.Bytes())
-	var acc Account
+	var acc SolidityAccount
 	if len(fBytes) == 0 {
-		return acc, &AccountNotFound{address}
+		return Account{}, &AccountNotFound{address}
 	}
-	_, err := acc.UnMarshalBinary(fBytes)
+	err := rlp.DecodeBytes(fBytes, &acc)
 	if err != nil {
 		return Account{}, err
 	}
-	return acc, nil
+	return acc.ToGolangFormat()
 }
 
 func (ot *OptimisticTrie) UpdateAccount(address common.Address, acc Account) common.Hash {
-	val := acc.MarshalBinary()
+	//val := acc.MarshalBinary()
+	val, err := rlp.EncodeToBytes(acc.SolidityFormat())
+	if err != nil {
+		panic(err)
+	}
+	//acc.Balance = new(big.Int).SetUint64(0e+18)
 	ot.Update(address.Bytes(), val)
 	return ot.Hash()
 }
@@ -49,11 +58,18 @@ func (ot *OptimisticTrie) NewProve(address common.Address) ([][]byte, error) {
 	if len(fBytes) == 0 {
 		return nil, &AccountNotFound{address}
 	}
+	tmpAcc, _ := ot.GetAccount(address)
+	log.Println(tmpAcc.Balance.Bytes())
 	proof := memorydb.New()
-	err := ot.Prove(address.Bytes(), 0, proof)
-	if err != nil {
-		return nil, err
+	formatProof := [][]byte{}
+	if it := trie.NewIterator(ot.NodeIterator(address.Bytes())); it.Next() && bytes.Equal(address.Bytes(), it.Key) {
+		for _, p := range it.Prove() {
+			log.Println(p)
+			formatProof = append(formatProof, p)
+			proof.Put(crypto.Keccak256(p), p)
+		}
 	}
+
 	toSend := make([][]byte, 4)
 	//key
 	toSend[0] = address.Bytes()
@@ -61,18 +77,18 @@ func (ot *OptimisticTrie) NewProve(address common.Address) ([][]byte, error) {
 	toSend[1] = fBytes
 	//root
 	toSend[3] = ot.Hash().Bytes()
-	formatProof := [][]byte{}
-	it := proof.NewIterator(nil, nil)
-	for it.Next() {
-		formatProof = append(formatProof, it.Value())
-	}
 	rlpProof, err := rlp.EncodeToBytes(formatProof)
 	if err != nil {
 		return nil, err
 	}
 	//rlp proof for onchain data https://github.com/ethereum-optimism/contracts/blob/c39fcc40aec235511a5a161c3e33a6d3bd24221c/test/helpers/trie/trie-test-generator.ts#L170
 	toSend[2] = rlpProof
-	return toSend, nil
+	log.Println(ot.Hash())
+	val, err := trie.VerifyProof(ot.StateRoot(), address.Bytes(), proof)
+	if !bytes.Equal(val, fBytes) {
+		return nil, fmt.Errorf("Verified value mismatch for key %x: have %x, want %x", address, val, fBytes)
+	}
+	return toSend, err
 }
 
 //Additional helpers not linked to interface so you can use them as you wish
@@ -106,7 +122,8 @@ func (ot *OptimisticTrie) ProcessTx(transaction Transaction) (common.Hash, error
 	default:
 		return common.Hash{}, err
 	}
-	if fromAcc.Balance.Cmp(transaction.Value) == -1 {
+	//tx Value must be higher than the account balance (fee are not included)
+	if fromAcc.Balance.Cmp(transaction.Value) <= 0 {
 		return common.Hash{}, &InvalidBalance{transaction.From, fromAcc.Balance}
 	}
 	fromAcc.Balance.Sub(fromAcc.Balance, transaction.Value)
@@ -114,4 +131,20 @@ func (ot *OptimisticTrie) ProcessTx(transaction Transaction) (common.Hash, error
 	fromAcc.Nonce++
 	ot.UpdateAccount(transaction.From, fromAcc)
 	return ot.UpdateAccount(transaction.To, toAcc), nil
+}
+
+func (ot *OptimisticTrie) Copy() (*OptimisticTrie, error) {
+	var (
+		diskdb = memorydb.New()
+		triedb = trie.NewDatabase(diskdb)
+	)
+	tr, err := trie.New(common.Hash{}, triedb)
+	if err != nil {
+		return nil, err
+	}
+	it := trie.NewIterator(ot.NodeIterator(nil))
+	for it.Next() {
+		tr.Update(it.Key, it.Value)
+	}
+	return &OptimisticTrie{tr}, nil
 }

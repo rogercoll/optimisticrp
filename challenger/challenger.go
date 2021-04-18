@@ -53,12 +53,30 @@ func (v *ChallengerNode) Synced() (bool, error) {
 	return true, nil
 }
 
-//Generate proof data to be send onchain, a proof proves that key with a certain value exits on the trie
-func (v *ChallengerNode) generateProof(acc common.Address) {
-	_, err := v.accountsTrie.NewProve(acc)
+//Send fraud proof to the contract
+func (v *ChallengerNode) sendFraudProof(acc common.Address) error {
+	proof, err := v.accountsTrie.NewProve(acc)
 	if err != nil {
-		return
+		return err
 	}
+	v.log.Info(acc)
+	for m, p := range proof {
+		if m == 0 {
+			fmt.Printf("[")
+		} else {
+			fmt.Printf(",[")
+		}
+		for n, i := range p {
+			if n == 0 {
+				fmt.Printf("%v", i)
+			} else {
+				fmt.Printf(",%v", i)
+			}
+		}
+		fmt.Printf("]")
+	}
+	fmt.Println()
+	return nil
 }
 
 func (v *ChallengerNode) VerifyOnChainData(errs chan<- interface{}) {
@@ -100,10 +118,14 @@ func (v *ChallengerNode) computeAccountsTrie() (common.Hash, error) {
 	pendingDeposits := []optimisticrp.Deposit{}
 	for methodData := range onChainData {
 		switch input := methodData.(type) {
-		case optimisticrp.Batch:
+		case optimisticrp.SolidityBatch:
+			batch, err := input.ToGolangFormat()
+			if err != nil {
+				return stateRoot, err
+			}
 			v.log.Info("New onChain Batch received")
 			//if there is a new batch we MUST update the stateRoot with the previous deposits (rule 1.)
-			isValid, err := v.ethContract.IsStateRootValid(input.StateRoot)
+			isValid, err := v.ethContract.IsStateRootValid(batch.StateRoot)
 			if err != nil {
 				return stateRoot, err
 			}
@@ -111,23 +133,51 @@ func (v *ChallengerNode) computeAccountsTrie() (common.Hash, error) {
 			if err != nil {
 				return stateRoot, err
 			}
+			v.log.Trace("Updating accounts state with new deposits")
+			for _, deposit := range pendingDeposits {
+				err := optimisticTrie.AddFunds(deposit.From, deposit.Value)
+				if err != nil {
+					return stateRoot, err
+				}
+			}
+			pendingDeposits = nil
 			if isValid {
-				v.log.Info("Updating accounts state as the provided batch is valid")
-				for _, deposit := range pendingDeposits {
-					err := optimisticTrie.AddFunds(deposit.From, deposit.Value)
+				v.log.Info("Updating accounts state as the provided batch is valid, it shall not contain any error")
+				for _, txInBatch := range batch.Transactions {
+					stateRoot, err = optimisticTrie.ProcessTx(txInBatch)
 					if err != nil {
 						return stateRoot, err
 					}
+					v.log.Info(optimisticTrie.GetAccount(txInBatch.From))
 				}
-				pendingDeposits = nil
-				for _, txInBatch := range input.Transactions {
+				//_ = v.sendFraudProof(common.HexToAddress("0x048C82fe2C85956Cf2872FBe32bE4AD06de3Db1E"))
+			} else if !isValid && input.StateRoot == onChainStateRoot {
+				tmpTrie, err := optimisticTrie.Copy()
+				if err != nil {
+					return stateRoot, err
+				}
+				for _, txInBatch := range batch.Transactions {
+					_, err := tmpTrie.ProcessTx(txInBatch)
+					if err != nil {
+						switch fraudAccount := err.(type) {
+						case nil:
+						case *optimisticrp.InvalidBalance:
+							v.log.WithFields(logrus.Fields{"fraudAccount": fraudAccount.Addr}).Warn("Fraud found! Generating fraud proof...")
+							err := v.sendFraudProof(fraudAccount.Addr)
+							return stateRoot, err
+						default:
+							return stateRoot, err
+						}
+					}
+				}
+				//If after analyzing all transactions with the temporal Trie we don't get any error we can proceed updating the main Trie
+				v.log.Info("Last batch is valid but lock time has not expired, updating accounts state...")
+				for _, txInBatch := range batch.Transactions {
 					stateRoot, err = optimisticTrie.ProcessTx(txInBatch)
 					if err != nil {
 						return stateRoot, err
 					}
 				}
-			} else if !isValid && input.StateRoot == onChainStateRoot {
-				v.log.Warn("Found last submitted batch, looking for a fraud...")
 			} else {
 				v.log.Debug("Skipping invalid onChain batch")
 			}

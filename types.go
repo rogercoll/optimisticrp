@@ -10,6 +10,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -63,7 +64,7 @@ type OptimisticSContract interface {
 	GetPendingDeposits(chan<- interface{})
 	IsStateRootValid(common.Hash) (bool, error)
 	PrepareTxOptions(*big.Int, *big.Int, *big.Int, *ecdsa.PrivateKey) (*bind.TransactOpts, error)
-	NewBatch(Batch, *bind.TransactOpts) (*types.Transaction, error)
+	NewBatch(SolidityBatch, *bind.TransactOpts) (*types.Transaction, error)
 	FraudProof()
 	Bond()
 	Withdraw()
@@ -86,15 +87,35 @@ type Transaction struct {
 	V, R, S *big.Int // signature values
 }
 
+type SolidityTransaction struct {
+	Value   []byte // wei amount
+	Gas     []byte // gasLimit
+	To      common.Address
+	From    common.Address
+	Nonce   uint64
+	V, R, S *big.Int // signature values TODO => make signature verificable on-chain
+}
+
 type Account struct {
 	Nonce   uint64
 	Balance *big.Int //weis
+}
+
+type SolidityAccount struct {
+	Nonce   uint64
+	Balance []byte
 }
 
 type Batch struct {
 	PrevStateRoot common.Hash
 	StateRoot     common.Hash
 	Transactions  []Transaction
+}
+
+type SolidityBatch struct {
+	PrevStateRoot common.Hash
+	StateRoot     common.Hash
+	Transactions  []SolidityTransaction
 }
 
 func (tx *Transaction) encodeTyped(w *bytes.Buffer) error {
@@ -132,6 +153,54 @@ func (account *Account) MarshalBinary() []byte {
 	//big.Int.Bytes returns BigEndian array
 	bb := account.Balance.Bytes()
 	return append(b, bb...)
+}
+
+func (account *Account) SolidityFormat() interface{} {
+	return SolidityAccount{Nonce: account.Nonce, Balance: math.U256Bytes(account.Balance)}
+}
+
+func (account *SolidityAccount) ToGolangFormat() (Account, error) {
+	return Account{Nonce: account.Nonce, Balance: new(big.Int).SetBytes(account.Balance)}, nil
+}
+
+func (b *Batch) SolidityFormat() SolidityBatch {
+	sb := SolidityBatch{
+		PrevStateRoot: b.PrevStateRoot,
+		StateRoot:     b.StateRoot,
+	}
+	for _, tx := range b.Transactions {
+		sb.Transactions = append(sb.Transactions, SolidityTransaction{
+			Gas:   math.U256Bytes(tx.Gas),
+			Value: math.U256Bytes(tx.Value),
+			To:    tx.To,
+			From:  tx.From,
+			Nonce: tx.Nonce,
+			V:     tx.V,
+			R:     tx.R,
+			S:     tx.S,
+		})
+	}
+	return sb
+}
+
+func (sb *SolidityBatch) ToGolangFormat() (Batch, error) {
+	b := Batch{
+		PrevStateRoot: sb.PrevStateRoot,
+		StateRoot:     sb.StateRoot,
+	}
+	for _, tx := range sb.Transactions {
+		b.Transactions = append(b.Transactions, Transaction{
+			Gas:   new(big.Int).SetBytes(tx.Gas),
+			Value: new(big.Int).SetBytes(tx.Value),
+			To:    tx.To,
+			From:  tx.From,
+			Nonce: tx.Nonce,
+			V:     tx.V,
+			R:     tx.R,
+			S:     tx.S,
+		})
+	}
+	return b, nil
 }
 
 func (account *Account) UnMarshalBinary(abytes []byte) (*Account, error) {

@@ -12,6 +12,7 @@ import (
 	"github.com/rogercoll/optimisticrp"
 	"github.com/rogercoll/optimisticrp/aggregator"
 	"github.com/rogercoll/optimisticrp/bridge"
+	"github.com/rogercoll/optimisticrp/cmd"
 	"github.com/sirupsen/logrus"
 )
 
@@ -27,7 +28,7 @@ func main() {
 		logger.Fatal(err)
 	}
 	logger.Info("Connected to the ETH client")
-	mybridge, err := bridge.New(common.HexToAddress("0x84Cb561d6cDd8b3697004303e5cda2f7a84b057B"), client, logger)
+	mybridge, err := bridge.New(common.HexToAddress(cmd.ContractAddr), client, logger)
 	if err != nil {
 		logger.Fatal(err)
 	}
