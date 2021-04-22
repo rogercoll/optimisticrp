@@ -33,7 +33,9 @@ func (m *mockBridge) GetStateRoot() (common.Hash, error) {
 func (m *mockBridge) NewBatch(optimisticrp.SolidityBatch, *bind.TransactOpts) (*types.Transaction, error) {
 	return nil, nil
 }
-func (m *mockBridge) FraudProof()                                            {}
+func (m *mockBridge) FraudProof(*bind.TransactOpts, []byte, []byte, []byte, []byte, optimisticrp.SolidityBatch) (*types.Transaction, error) {
+	return nil, nil
+}
 func (m *mockBridge) Deposit(*bind.TransactOpts) (*types.Transaction, error) { return nil, nil }
 func (m *mockBridge) Bond(*bind.TransactOpts) (*types.Transaction, error)    { return nil, nil }
 func (m *mockBridge) Withdraw()                                              {}
