@@ -3,7 +3,6 @@ package optimisticrp
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -58,13 +57,10 @@ func (ot *OptimisticTrie) NewProve(address common.Address) ([][]byte, error) {
 	if len(fBytes) == 0 {
 		return nil, &AccountNotFound{address}
 	}
-	tmpAcc, _ := ot.GetAccount(address)
-	log.Println(tmpAcc.Balance.Bytes())
 	proof := memorydb.New()
 	formatProof := [][]byte{}
 	if it := trie.NewIterator(ot.NodeIterator(address.Bytes())); it.Next() && bytes.Equal(address.Bytes(), it.Key) {
 		for _, p := range it.Prove() {
-			log.Println(p)
 			formatProof = append(formatProof, p)
 			proof.Put(crypto.Keccak256(p), p)
 		}
@@ -83,7 +79,6 @@ func (ot *OptimisticTrie) NewProve(address common.Address) ([][]byte, error) {
 	}
 	//rlp proof for onchain data https://github.com/ethereum-optimism/contracts/blob/c39fcc40aec235511a5a161c3e33a6d3bd24221c/test/helpers/trie/trie-test-generator.ts#L170
 	toSend[2] = rlpProof
-	log.Println(ot.Hash())
 	val, err := trie.VerifyProof(ot.StateRoot(), address.Bytes(), proof)
 	if !bytes.Equal(val, fBytes) {
 		return nil, fmt.Errorf("Verified value mismatch for key %x: have %x, want %x", address, val, fBytes)
@@ -123,7 +118,7 @@ func (ot *OptimisticTrie) ProcessTx(transaction Transaction) (common.Hash, error
 		return common.Hash{}, err
 	}
 	//tx Value must be higher than the account balance (fee are not included)
-	if fromAcc.Balance.Cmp(transaction.Value) <= 0 {
+	if fromAcc.Balance.Cmp(transaction.Value) == -1 {
 		return common.Hash{}, &InvalidBalance{transaction.From, fromAcc.Balance}
 	}
 	fromAcc.Balance.Sub(fromAcc.Balance, transaction.Value)

@@ -11,7 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const MAX_TRANSACTIONS_BATCH = 10
+const MAX_TRANSACTIONS_BATCH = 30
 
 type AggregatorNode struct {
 	transactions    []optimisticrp.Transaction
@@ -123,31 +123,6 @@ func (ag *AggregatorNode) onChainStateRoot() (common.Hash, error) {
 	return ag.ethContract.GetStateRoot()
 }
 
-func (ag *AggregatorNode) processTx(transaction optimisticrp.Transaction) (common.Hash, error) {
-	fromAcc, err := ag.accountsTrie.GetAccount(transaction.From)
-	if err != nil {
-		return common.Hash{}, err
-	}
-	toAcc, err := ag.accountsTrie.GetAccount(transaction.To)
-	switch err.(type) {
-	case nil:
-	case *optimisticrp.AccountNotFound:
-		toAcc = optimisticrp.Account{Balance: new(big.Int).SetUint64(0), Nonce: 0}
-		ag.accountsTrie.UpdateAccount(transaction.To, toAcc)
-	default:
-		return common.Hash{}, err
-	}
-	if fromAcc.Balance.Cmp(transaction.Value) == -1 {
-		return common.Hash{}, &optimisticrp.InvalidBalance{transaction.From, fromAcc.Balance}
-	}
-	fromAcc.Balance.Sub(fromAcc.Balance, transaction.Value)
-	toAcc.Balance.Add(toAcc.Balance, transaction.Value)
-	fromAcc.Nonce++
-	ag.accountsTrie.UpdateAccount(transaction.From, fromAcc)
-	ag.log.WithFields(logrus.Fields{"Value": transaction.Value, "Sender": transaction.From, "Remaining balance": fromAcc.Balance}).Debug("Processed transaction")
-	return ag.accountsTrie.UpdateAccount(transaction.To, toAcc), nil
-}
-
 //Malicious processTx which won't check if amount is negative
 func (ag *AggregatorNode) maliciousProcessTx(transaction optimisticrp.Transaction) (common.Hash, error) {
 	fromAcc, err := ag.accountsTrie.GetAccount(transaction.From)
@@ -194,6 +169,10 @@ func (ag *AggregatorNode) addFunds(account common.Address, value *big.Int) error
 
 //Reads all transactions to the smart contracts and computes the whole accounts trie from scratch
 func (ag *AggregatorNode) computeAccountsTrie() (common.Hash, []optimisticrp.Deposit, error) {
+	optimisticTrie, ok := ag.accountsTrie.(*optimisticrp.OptimisticTrie)
+	if ok != true {
+		return common.Hash{}, nil, fmt.Errorf("This challenger implementation uses the OptimisticTrie object, if you are not, please develop your own challenger functions")
+	}
 	onChainData := make(chan interface{})
 	go ag.ethContract.GetOnChainData(onChainData)
 	stateRoot := common.Hash{}
@@ -206,30 +185,54 @@ func (ag *AggregatorNode) computeAccountsTrie() (common.Hash, []optimisticrp.Dep
 				return stateRoot, nil, err
 			}
 			ag.log.Info("New onChain Batch received")
-			//check if it is a valid batch, if not it does not need to update its trie
+			//if there is a new batch we MUST update the stateRoot with the previous deposits (rule 1.)
 			isValid, err := ag.ethContract.IsStateRootValid(batch.StateRoot)
 			if err != nil {
 				return stateRoot, nil, err
 			}
-			if isValid {
-				//next block of code should go here once max time to generate proof is implemented
+			onChainStateRoot, err := ag.ethContract.GetStateRoot()
+			if err != nil {
+				return stateRoot, nil, err
 			}
-			ag.log.Info("Updating accounts state as the provided batch is valid")
-			//if there is a new batch we MUST update the stateRoot with the previous deposits (rule 1.)
+			ag.log.Trace("Updating accounts state with new deposits")
 			for _, deposit := range pendingDeposits {
-				err := ag.addFunds(deposit.From, deposit.Value)
+				err := optimisticTrie.AddFunds(deposit.From, deposit.Value)
 				if err != nil {
 					return stateRoot, nil, err
 				}
 			}
 			pendingDeposits = nil
-			for _, txInBatch := range batch.Transactions {
-				stateRoot, err = ag.maliciousProcessTx(txInBatch)
+			if isValid {
+				ag.log.Info("Updating accounts state as the provided batch is valid, it shall not contain any error")
+				for _, txInBatch := range batch.Transactions {
+					stateRoot, err = optimisticTrie.ProcessTx(txInBatch)
+					if err != nil {
+						return stateRoot, nil, err
+					}
+				}
+				//_ = v.sendFraudProof(common.HexToAddress("0x048C82fe2C85956Cf2872FBe32bE4AD06de3Db1E"))
+			} else if !isValid && input.StateRoot == onChainStateRoot {
+				tmpTrie, err := optimisticTrie.Copy()
 				if err != nil {
 					return stateRoot, nil, err
 				}
+				for _, txInBatch := range batch.Transactions {
+					_, err := tmpTrie.ProcessTx(txInBatch)
+					if err != nil {
+						return stateRoot, nil, err
+					}
+				}
+				//If after analyzing all transactions with the temporal Trie we don't get any error we can proceed updating the main Trie
+				ag.log.Info("Last batch is valid but lock time has not expired, updating accounts state...")
+				for _, txInBatch := range batch.Transactions {
+					stateRoot, err = optimisticTrie.ProcessTx(txInBatch)
+					if err != nil {
+						return stateRoot, nil, err
+					}
+				}
+			} else {
+				ag.log.Debug("Skipping invalid onChain batch")
 			}
-			ag.log.Warn(stateRoot)
 		case optimisticrp.Deposit:
 			ag.log.WithFields(logrus.Fields{"Account": input.From, "Value": input.Value}).Info("New onChain deposit")
 			pendingDeposits = append(pendingDeposits, input)

@@ -27,13 +27,14 @@ type mockBridge struct {
 
 func (m *mockBridge) Client() *ethclient.Client          { return nil }
 func (m *mockBridge) GetStateRoot() (common.Hash, error) { return common.Hash{}, nil }
-func (m *mockBridge) NewBatch(optimisticrp.Batch, *bind.TransactOpts) (*types.Transaction, error) {
+func (m *mockBridge) NewBatch(optimisticrp.SolidityBatch, *bind.TransactOpts) (*types.Transaction, error) {
 	return nil, nil
 }
-func (m *mockBridge) FraudProof()             {}
-func (m *mockBridge) Bond()                   {}
-func (m *mockBridge) Withdraw()               {}
-func (m *mockBridge) OriAddr() common.Address { return common.Address{} }
+func (m *mockBridge) FraudProof()                                            {}
+func (m *mockBridge) Deposit(*bind.TransactOpts) (*types.Transaction, error) { return nil, nil }
+func (m *mockBridge) Bond(*bind.TransactOpts) (*types.Transaction, error)    { return nil, nil }
+func (m *mockBridge) Withdraw()                                              {}
+func (m *mockBridge) OriAddr() common.Address                                { return common.Address{} }
 func (m *mockBridge) GetPendingDeposits(depChannel chan<- interface{}) {
 	defer close(depChannel)
 	depChannel <- optimisticrp.Deposit{addrAccount2, big.NewInt(1e+18)}

@@ -51,7 +51,6 @@ func (b *Bridge) GetStateRoot() (common.Hash, error) {
 }
 
 func (b *Bridge) NewBatch(batch optimisticrp.SolidityBatch, txOpts *bind.TransactOpts) (*types.Transaction, error) {
-	log.Println(batch)
 	result, err := rlp.EncodeToBytes(batch)
 	if err != nil {
 		return nil, err
@@ -60,6 +59,7 @@ func (b *Bridge) NewBatch(batch optimisticrp.SolidityBatch, txOpts *bind.Transac
 	if err != nil {
 		return nil, err
 	}
+	b.log.Info("New batch was successfully submited onChain")
 	return txresult, nil
 }
 
@@ -67,12 +67,39 @@ func (b *Bridge) OriAddr() common.Address {
 	return b.oriAddr
 }
 
-func (b *Bridge) FraudProof() {
-
+func (b *Bridge) FraudProof(txOpts *bind.TransactOpts, address, value, proof, stateRoot []byte, lastBatch optimisticrp.SolidityBatch) (*types.Transaction, error) {
+	var array [32]byte
+	copy(array[:], stateRoot[:32])
+	result, err := rlp.EncodeToBytes(lastBatch)
+	if err != nil {
+		return nil, err
+	}
+	txresult, err := b.oriContract.ProveFraud(txOpts, address, value, proof, array, result)
+	if err != nil {
+		return nil, err
+	}
+	b.log.Info("Fraud proof was successfully submited onChain")
+	return txresult, nil
 }
-func (b *Bridge) Bond() {
 
+func (b *Bridge) Bond(txOpts *bind.TransactOpts) (*types.Transaction, error) {
+	txresult, err := b.oriContract.Bond(txOpts)
+	if err != nil {
+		return nil, err
+	}
+	b.log.Info("Bond was successful")
+	return txresult, nil
 }
+
+func (b *Bridge) Deposit(txOpts *bind.TransactOpts) (*types.Transaction, error) {
+	txresult, err := b.oriContract.Deposit(txOpts)
+	if err != nil {
+		return nil, err
+	}
+	b.log.Info("Deposit to onChain smart contract done successfully")
+	return txresult, nil
+}
+
 func (b *Bridge) Withdraw() {
 
 }

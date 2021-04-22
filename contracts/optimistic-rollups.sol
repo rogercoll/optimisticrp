@@ -10,7 +10,6 @@ contract Optimistic_Rollups {
     
     bytes32 public stateRoot;
     bytes32 public prev_stateRoot;
-    bytes lastBatch;
     uint256 public immutable lock_time;
     uint256 public immutable required_bond;
     mapping(address => address) public aggregators;
@@ -67,13 +66,12 @@ contract Optimistic_Rollups {
         prev_stateRoot = stateRoot;
         Lib_RLPReader.RLPItem memory _newstateRoot = ls[1];
         stateRoot = abi.decode(Lib_RLPReader.readBytes(_newstateRoot), (bytes32));
-        lastBatch = _batch;
         //At this point we consider the prevBatch as correct
         valid_stateRoots[prev_stateRoot] = true;
     }
     
     //account_proof must contain a proof of the account balance for the previous stateRoot
-    function prove_fraud(bytes calldata _key, bytes calldata _value, bytes memory _proof, bytes32 _root) external {
+    function prove_fraud(bytes calldata _key, bytes calldata _value, bytes memory _proof, bytes32 _root, bytes calldata _lastBatch) external {
         //Check proof
         require(_root == prev_stateRoot && stateRoot != prev_stateRoot, "NOT_VALID_PROOF");
         require(Lib_MerkleTrie.verifyInclusionProof(_key,_value,_proof,_root) == true, "INVALID_ACCOUNT_PROOF");
@@ -88,7 +86,7 @@ contract Optimistic_Rollups {
         //fraudNonce = accNonce;
         
         //Now we must verify the value of the account after the applyed batch
-        Lib_RLPReader.RLPItem[] memory ls = Lib_RLPReader.readList(lastBatch);
+        Lib_RLPReader.RLPItem[] memory ls = Lib_RLPReader.readList(_lastBatch);
         Lib_RLPReader.RLPItem[] memory transactions = Lib_RLPReader.readList(ls[2]);
         for (uint256 i = 0; i < transactions.length; i++) {
             Lib_RLPReader.RLPItem[] memory tx_data = Lib_RLPReader.readList(transactions[i]);

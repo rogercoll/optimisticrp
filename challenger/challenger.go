@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -54,12 +55,11 @@ func (v *ChallengerNode) Synced() (bool, error) {
 }
 
 //Send fraud proof to the contract
-func (v *ChallengerNode) sendFraudProof(acc common.Address) error {
+func (v *ChallengerNode) sendFraudProof(acc common.Address, batch optimisticrp.SolidityBatch) error {
 	proof, err := v.accountsTrie.NewProve(acc)
 	if err != nil {
 		return err
 	}
-	v.log.Info(acc)
 	for m, p := range proof {
 		if m == 0 {
 			fmt.Printf("[")
@@ -76,6 +76,14 @@ func (v *ChallengerNode) sendFraudProof(acc common.Address) error {
 		fmt.Printf("]")
 	}
 	fmt.Println()
+	txOpts, err := v.ethContract.PrepareTxOptions(big.NewInt(0), big.NewInt(2), big.NewInt(2), v.privKey)
+	if err != nil {
+		return err
+	}
+	_, err = v.ethContract.FraudProof(txOpts, proof[0], proof[1], proof[2], proof[3], batch)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -148,7 +156,6 @@ func (v *ChallengerNode) computeAccountsTrie() (common.Hash, error) {
 					if err != nil {
 						return stateRoot, err
 					}
-					v.log.Info(optimisticTrie.GetAccount(txInBatch.From))
 				}
 				//_ = v.sendFraudProof(common.HexToAddress("0x048C82fe2C85956Cf2872FBe32bE4AD06de3Db1E"))
 			} else if !isValid && input.StateRoot == onChainStateRoot {
@@ -163,7 +170,7 @@ func (v *ChallengerNode) computeAccountsTrie() (common.Hash, error) {
 						case nil:
 						case *optimisticrp.InvalidBalance:
 							v.log.WithFields(logrus.Fields{"fraudAccount": fraudAccount.Addr}).Warn("Fraud found! Generating fraud proof...")
-							err := v.sendFraudProof(fraudAccount.Addr)
+							err := v.sendFraudProof(fraudAccount.Addr, input)
 							return stateRoot, err
 						default:
 							return stateRoot, err

@@ -65,8 +65,9 @@ type OptimisticSContract interface {
 	IsStateRootValid(common.Hash) (bool, error)
 	PrepareTxOptions(*big.Int, *big.Int, *big.Int, *ecdsa.PrivateKey) (*bind.TransactOpts, error)
 	NewBatch(SolidityBatch, *bind.TransactOpts) (*types.Transaction, error)
-	FraudProof()
-	Bond()
+	FraudProof(*bind.TransactOpts, []byte, []byte, []byte, []byte, SolidityBatch) (*types.Transaction, error)
+	Bond(*bind.TransactOpts) (*types.Transaction, error)
+	Deposit(*bind.TransactOpts) (*types.Transaction, error)
 	Withdraw()
 	Client() *ethclient.Client
 }
