@@ -82,6 +82,17 @@ func (b *Bridge) FraudProof(txOpts *bind.TransactOpts, address, value, proof, st
 	return txresult, nil
 }
 
+func (b *Bridge) Withdraw(txOpts *bind.TransactOpts, address, value, proof, stateRoot []byte) (*types.Transaction, error) {
+	var array [32]byte
+	copy(array[:], stateRoot[:32])
+	txresult, err := b.oriContract.Withdraw(txOpts, address, value, proof, array)
+	if err != nil {
+		return nil, err
+	}
+	b.log.Info("Withdraw was successfully submited onChain")
+	return txresult, nil
+}
+
 func (b *Bridge) Bond(txOpts *bind.TransactOpts) (*types.Transaction, error) {
 	txresult, err := b.oriContract.Bond(txOpts)
 	if err != nil {
@@ -98,10 +109,6 @@ func (b *Bridge) Deposit(txOpts *bind.TransactOpts) (*types.Transaction, error) 
 	}
 	b.log.Info("Deposit to onChain smart contract done successfully")
 	return txresult, nil
-}
-
-func (b *Bridge) Withdraw() {
-
 }
 
 func (b *Bridge) IsStateRootValid(state common.Hash) (bool, error) {
@@ -162,6 +169,25 @@ func (b *Bridge) GetOnChainData(dataChannel chan<- interface{}) {
 							dataChannel <- err
 						}
 						dataChannel <- optimisticrp.Deposit{msg.From(), tx.Value()}
+					} else if method.Name == "withdraw" {
+						data, err := method.Inputs.UnpackValues(argdata)
+						if err != nil {
+							dataChannel <- err
+						}
+						var acc optimisticrp.SolidityAccount
+						err = rlp.DecodeBytes(data[1].([]byte), &acc)
+						if err != nil {
+							dataChannel <- err
+						}
+						msg, err := tx.AsMessage(types.NewEIP155Signer(tx.ChainId()))
+						if err != nil {
+							dataChannel <- err
+						}
+						goFormat, err := acc.ToGolangFormat()
+						if err != nil {
+							dataChannel <- err
+						}
+						dataChannel <- optimisticrp.Withdraw{msg.From(), goFormat.Balance}
 					}
 				}
 			}

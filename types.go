@@ -68,12 +68,17 @@ type OptimisticSContract interface {
 	FraudProof(*bind.TransactOpts, []byte, []byte, []byte, []byte, SolidityBatch) (*types.Transaction, error)
 	Bond(*bind.TransactOpts) (*types.Transaction, error)
 	Deposit(*bind.TransactOpts) (*types.Transaction, error)
-	Withdraw()
+	Withdraw(*bind.TransactOpts, []byte, []byte, []byte, []byte) (*types.Transaction, error)
 	Client() *ethclient.Client
 }
 
 //Common types
 type Deposit struct {
+	From  common.Address
+	Value *big.Int
+}
+
+type Withdraw struct {
 	From  common.Address
 	Value *big.Int
 }

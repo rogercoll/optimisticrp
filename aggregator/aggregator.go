@@ -11,16 +11,17 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const MAX_TRANSACTIONS_BATCH = 30
+const MAX_TRANSACTIONS_BATCH = 100
 
 type AggregatorNode struct {
-	transactions    []optimisticrp.Transaction
-	pendingDeposits []optimisticrp.Deposit
-	accountsTrie    optimisticrp.Optimistic
-	ethContract     optimisticrp.OptimisticSContract
-	privKey         *ecdsa.PrivateKey
-	onChainRoot     common.Hash
-	log             *logrus.Entry
+	transactions     []optimisticrp.Transaction
+	pendingDeposits  []optimisticrp.Deposit
+	pendingWithdraws []optimisticrp.Withdraw
+	accountsTrie     optimisticrp.Optimistic
+	ethContract      optimisticrp.OptimisticSContract
+	privKey          *ecdsa.PrivateKey
+	onChainRoot      common.Hash
+	log              *logrus.Entry
 }
 
 func New(newAccountsTrie optimisticrp.Optimistic, newEthContract optimisticrp.OptimisticSContract, privateKey *ecdsa.PrivateKey, logger *logrus.Logger) *AggregatorNode {
@@ -65,6 +66,12 @@ func (ag *AggregatorNode) sendBatch() error {
 	}
 	for _, deposit := range ag.pendingDeposits {
 		err := ag.addFunds(deposit.From, deposit.Value)
+		if err != nil {
+			return err
+		}
+	}
+	for _, withdraw := range ag.pendingWithdraws {
+		err := ag.removeFunds(withdraw.From, withdraw.Value)
 		if err != nil {
 			return err
 		}
@@ -167,6 +174,22 @@ func (ag *AggregatorNode) addFunds(account common.Address, value *big.Int) error
 	return nil
 }
 
+func (ag *AggregatorNode) removeFunds(account common.Address, value *big.Int) error {
+	acc, err := ag.accountsTrie.GetAccount(account)
+	switch err.(type) {
+	case nil:
+	case *optimisticrp.AccountNotFound:
+		newAcc := optimisticrp.Account{Balance: value, Nonce: 0}
+		ag.accountsTrie.UpdateAccount(account, newAcc)
+		return nil
+	default:
+		return err
+	}
+	acc.Balance.Sub(acc.Balance, value)
+	ag.accountsTrie.UpdateAccount(account, acc)
+	return nil
+}
+
 //Reads all transactions to the smart contracts and computes the whole accounts trie from scratch
 func (ag *AggregatorNode) computeAccountsTrie() (common.Hash, []optimisticrp.Deposit, error) {
 	optimisticTrie, ok := ag.accountsTrie.(*optimisticrp.OptimisticTrie)
@@ -202,6 +225,14 @@ func (ag *AggregatorNode) computeAccountsTrie() (common.Hash, []optimisticrp.Dep
 				}
 			}
 			pendingDeposits = nil
+			ag.log.Trace("Updating accounts state with last withdraws")
+			for _, withdraw := range ag.pendingWithdraws {
+				err := optimisticTrie.RemoveFunds(withdraw.From, withdraw.Value)
+				if err != nil {
+					return stateRoot, nil, err
+				}
+			}
+			ag.pendingWithdraws = nil
 			if isValid {
 				ag.log.Info("Updating accounts state as the provided batch is valid, it shall not contain any error")
 				for _, txInBatch := range batch.Transactions {
@@ -236,6 +267,9 @@ func (ag *AggregatorNode) computeAccountsTrie() (common.Hash, []optimisticrp.Dep
 		case optimisticrp.Deposit:
 			ag.log.WithFields(logrus.Fields{"Account": input.From, "Value": input.Value}).Info("New onChain deposit")
 			pendingDeposits = append(pendingDeposits, input)
+		case optimisticrp.Withdraw:
+			ag.log.WithFields(logrus.Fields{"Account": input.From, "Value": input.Value}).Info("New onChain withdraw")
+			ag.pendingWithdraws = append(ag.pendingWithdraws, input)
 		case error:
 			return stateRoot, nil, input
 

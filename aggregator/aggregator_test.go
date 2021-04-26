@@ -36,9 +36,11 @@ func (m *mockBridge) NewBatch(optimisticrp.SolidityBatch, *bind.TransactOpts) (*
 func (m *mockBridge) FraudProof(*bind.TransactOpts, []byte, []byte, []byte, []byte, optimisticrp.SolidityBatch) (*types.Transaction, error) {
 	return nil, nil
 }
+func (m *mockBridge) Withdraw(*bind.TransactOpts, []byte, []byte, []byte, []byte) (*types.Transaction, error) {
+	return nil, nil
+}
 func (m *mockBridge) Deposit(*bind.TransactOpts) (*types.Transaction, error) { return nil, nil }
 func (m *mockBridge) Bond(*bind.TransactOpts) (*types.Transaction, error)    { return nil, nil }
-func (m *mockBridge) Withdraw()                                              {}
 func (m *mockBridge) OriAddr() common.Address                                { return common.Address{} }
 func (m *mockBridge) GetPendingDeposits(depChannel chan<- interface{}) {
 	defer close(depChannel)

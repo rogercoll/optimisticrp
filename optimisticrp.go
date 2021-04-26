@@ -103,6 +103,22 @@ func (ot *OptimisticTrie) AddFunds(account common.Address, value *big.Int) error
 	return nil
 }
 
+func (ot *OptimisticTrie) RemoveFunds(account common.Address, value *big.Int) error {
+	acc, err := ot.GetAccount(account)
+	switch err.(type) {
+	case nil:
+	case *AccountNotFound:
+		newAcc := Account{Balance: value, Nonce: 0}
+		ot.UpdateAccount(account, newAcc)
+		return nil
+	default:
+		return err
+	}
+	acc.Balance.Sub(acc.Balance, value)
+	ot.UpdateAccount(account, acc)
+	return nil
+}
+
 func (ot *OptimisticTrie) ProcessTx(transaction Transaction) (common.Hash, error) {
 	fromAcc, err := ot.GetAccount(transaction.From)
 	if err != nil {

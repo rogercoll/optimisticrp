@@ -10,22 +10,20 @@ contract Optimistic_Rollups {
     
     bytes32 public stateRoot;
     bytes32 public prev_stateRoot;
+    address public last_batch_submitter;
     uint256 public immutable lock_time;
     uint256 public immutable required_bond;
+    uint256 public last_batch_time;
     mapping(address => address) public aggregators;
     mapping(bytes32 => bool) public valid_stateRoots;
     
     mapping(address => mapping(bytes32 => uint256)) private last_deposits;
+    mapping(address => mapping(bytes32 => uint256)) private last_withdraws;
     event New_Deposit(address user, bytes32 stateRoot, uint256 value);
+    event New_withdraw(address user, bytes32 stateRoot, uint256 value);
     event Fraud_Proved(address challenger);
     event Invalid_Proof(address challenger);
 
-
-    uint256 public tmpTest;
-    bytes32 public fraudAcc;
-    uint256 public fraudBalance;
-    uint256 public fraudNonce;
-    uint256 public fraudDone;
 
 
     constructor(
@@ -35,6 +33,7 @@ contract Optimistic_Rollups {
         stateRoot = bytes32(0);
         prev_stateRoot = bytes32(0);
         lock_time = _lock_time;
+        last_batch_time = block.timestamp - _lock_time;
         required_bond = _required_bond;
     }
     
@@ -43,21 +42,49 @@ contract Optimistic_Rollups {
         _;
     }
     
-    function deposit() external payable {
-        last_deposits[msg.sender][stateRoot] += msg.value;
-        emit New_Deposit(msg.sender, stateRoot, msg.value);
+    modifier can_exit_optimism() {
+        // Check that enough time has elapsed for potential fraud proofs (10 minutes)
+        require (block.timestamp >= last_batch_time + lock_time, "OPTIMISTIC_PERIOD");
+        _;
     }
     
-    // Bonds msg.value for msg.sender
+    //Bonds msg.value for msg.sender to become and aggregator
     function bond() external payable {
         require(msg.value >= required_bond, "INSUFFICIENT_BOND");
         aggregators[msg.sender] = msg.sender;
     }
+    
+    //Deposits funds so they can be used in layer2
+    function deposit() external payable can_exit_optimism() {
+        //we must verity stateRoot is valid
+        last_deposits[msg.sender][stateRoot] += msg.value;
+        emit New_Deposit(msg.sender, stateRoot, msg.value);
+    }
+    
+    function withdraw(bytes calldata _key, bytes calldata _value, bytes memory _proof, bytes32 _root) external can_exit_optimism() {
+        require(_root == stateRoot, "NOT_VALID_PROOF");
+        
+        //prevent double withdraw
+        require(last_withdraws[msg.sender][stateRoot] == 0, "WITHDRAW_ALREADY_DONE");
+        
+        require(Lib_MerkleTrie.verifyInclusionProof(_key,_value,_proof,_root) == true, "INVALID_ACCOUNT_PROOF");
+        address accAddr = Lib_BytesUtils.toAddress(_key,0);
+        
+        //Check msg.sender == proof address
+        require (accAddr == msg.sender, "INVALID_WITHDRAW_REQUESTER");
+        Lib_RLPReader.RLPItem[] memory account = Lib_RLPReader.readList(_value);
+        uint256 accBalance = Lib_BytesUtils.toUint256(Lib_RLPReader.readBytes(account[1]));
+        last_withdraws[msg.sender][stateRoot] += accBalance;
+        msg.sender.transfer(accBalance);
+        emit New_withdraw(msg.sender, stateRoot, accBalance);
+    }
+    
+    
 
     
     
     //[248, 95, 160, 48, 90, 96, 180, 15, 169, 0, 12, 30, 160, 135, 133, 84, 61, 18, 113, 22, 62, 245, 86, 20, 148, 103, 136, 32, 124, 139, 204, 83, 60, 79, 110, 248, 60, 248, 58, 136, 13, 224, 182, 179, 167, 100, 0, 0, 133, 11, 164, 59, 116, 0, 148, 139, 80, 60, 161, 190, 245, 90, 144, 66, 118, 19, 143, 46, 166, 9, 6, 210, 197, 135, 129, 148, 4, 140, 130, 254, 44, 133, 149, 108, 242, 135, 47, 190, 50, 190, 74, 208, 109, 227, 219, 30, 1]
-    function newBatch(bytes calldata _batch) external is_aggregator(msg.sender) returns (string memory) {
+    function newBatch(bytes calldata _batch) external is_aggregator(msg.sender) can_exit_optimism() returns (string memory) {
         //here we should check if fraud proof time has expired
         require(_batch.length > 0, "EMPTY_NEW_BATCH");
         Lib_RLPReader.RLPItem[] memory ls = Lib_RLPReader.readList(_batch);
@@ -68,6 +95,8 @@ contract Optimistic_Rollups {
         stateRoot = abi.decode(Lib_RLPReader.readBytes(_newstateRoot), (bytes32));
         //At this point we consider the prevBatch as correct
         valid_stateRoots[prev_stateRoot] = true;
+        last_batch_submitter = msg.sender;
+        last_batch_time = block.timestamp;
     }
     
     //account_proof must contain a proof of the account balance for the previous stateRoot
@@ -77,13 +106,16 @@ contract Optimistic_Rollups {
         require(Lib_MerkleTrie.verifyInclusionProof(_key,_value,_proof,_root) == true, "INVALID_ACCOUNT_PROOF");
         
         //Extractic account values
+        //Research what costs more: keccak256 or toAddress(_key)
         bytes32 accAddr = keccak256(_key); //we will compare with the hash of the bytes representing the account
         Lib_RLPReader.RLPItem[] memory account = Lib_RLPReader.readList(_value);
         uint256 accBalance = Lib_BytesUtils.toUint256(Lib_RLPReader.readBytes(account[1]));
         //uint256 accNonce = Lib_BytesUtils.toUint256(Lib_RLPReader.readBytes(account[0]));
-        fraudBalance = accBalance;
-        fraudAcc = accAddr;
-        //fraudNonce = accNonce;
+        
+        //We must increment and decrease account balance with its last deposits/withdraws as are not contemplated in the account proof
+        accBalance += last_deposits[Lib_BytesUtils.toAddress(_key,0)][prev_stateRoot];
+        accBalance -= last_withdraws[Lib_BytesUtils.toAddress(_key,0)][prev_stateRoot];
+
         
         //Now we must verify the value of the account after the applyed batch
         Lib_RLPReader.RLPItem[] memory ls = Lib_RLPReader.readList(_lastBatch);
@@ -97,8 +129,8 @@ contract Optimistic_Rollups {
                 uint256 txValue = abi.decode(Lib_RLPReader.readBytes(tx_data[1]), (uint256));
                 if (txValue > accBalance) {
                     emit Fraud_Proved(msg.sender);
+                    delete aggregators[last_batch_submitter];
                     stateRoot = prev_stateRoot;
-                    fraudDone = 3;
                     msg.sender.transfer(required_bond);
                     return;
                 }
@@ -109,61 +141,6 @@ contract Optimistic_Rollups {
 
         //if fraud is proved => change to the last apporved stateRoot and reward the prover
     }
-    
-    function readUser(bytes calldata _value) public {
-        Lib_RLPReader.RLPItem[] memory account = Lib_RLPReader.readList(_value);
-        uint256 accBalance = Lib_BytesUtils.toUint256(Lib_RLPReader.readBytes(account[1]));
-        fraudBalance = accBalance;
-    }
-    
-    function readAddr (bytes calldata  _key) public pure returns (address x) {
-        assembly {
-            x := mload(0x94)
-        }
-    }
-    
-    function decode(bytes memory _encoded) public pure returns (address x, address y) {
-        assembly {
-            x := mload(0x94)
-            y := mload(0xa8)
-        }
-    }
-    
-    function toUint256(
-        bytes memory _bytes
-    )
-        public
-        returns (uint256)
-    {
-        tmpTest = Lib_BytesUtils.toUint256(_bytes);
-        return tmpTest;
-    }
-    
-    function simpleTest() public returns (uint256) {
-        tmpTest = 160;
-        return tmpTest;    
-    
-    }
-    
-    function simpleTest2(uint256 a) public returns (uint256) {
-        tmpTest = a;
-        return tmpTest;    
-    
-    }
-    
-    //[160,48,90,96,180,15,169,0,12,30,160,135,133,84,61,18,113,22,62,245,86,20,148,103,136,32,124,139,204,83,60,79,110]
-    function readHashRLP(bytes memory _hash) external returns (string memory) {
-        stateRoot = abi.decode(Lib_RLPReader.readBytes(_hash), (bytes32));
-    }
-    
-    function readHash(bytes calldata _hash) external returns (string memory) {
-        stateRoot = abi.decode(_hash[:32], (bytes32));
-    }
-    
-    function getStateRoot() public view returns (bytes32){
-        return stateRoot;
-    }
-    
 
 }
 

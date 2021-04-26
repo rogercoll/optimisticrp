@@ -124,6 +124,7 @@ func (v *ChallengerNode) computeAccountsTrie() (common.Hash, error) {
 	go v.ethContract.GetOnChainData(onChainData)
 	stateRoot := common.Hash{}
 	pendingDeposits := []optimisticrp.Deposit{}
+	pendingWithdraws := []optimisticrp.Withdraw{}
 	for methodData := range onChainData {
 		switch input := methodData.(type) {
 		case optimisticrp.SolidityBatch:
@@ -149,6 +150,14 @@ func (v *ChallengerNode) computeAccountsTrie() (common.Hash, error) {
 				}
 			}
 			pendingDeposits = nil
+			v.log.Trace("Updating accounts state with last withdraws")
+			for _, withdraw := range pendingWithdraws {
+				err := optimisticTrie.RemoveFunds(withdraw.From, withdraw.Value)
+				if err != nil {
+					return stateRoot, err
+				}
+			}
+			pendingWithdraws = nil
 			if isValid {
 				v.log.Info("Updating accounts state as the provided batch is valid, it shall not contain any error")
 				for _, txInBatch := range batch.Transactions {
@@ -191,6 +200,9 @@ func (v *ChallengerNode) computeAccountsTrie() (common.Hash, error) {
 		case optimisticrp.Deposit:
 			v.log.WithFields(logrus.Fields{"Account": input.From, "Value": input.Value}).Info("New onChain deposit")
 			pendingDeposits = append(pendingDeposits, input)
+		case optimisticrp.Withdraw:
+			v.log.WithFields(logrus.Fields{"Account": input.From, "Value": input.Value}).Info("New onChain withdraw")
+			pendingWithdraws = append(pendingWithdraws, input)
 		case error:
 			return stateRoot, input
 
