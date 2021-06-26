@@ -60,22 +60,25 @@ func (v *ChallengerNode) sendFraudProof(acc common.Address, batch optimisticrp.S
 	if err != nil {
 		return err
 	}
-	for m, p := range proof {
-		if m == 0 {
-			fmt.Printf("[")
-		} else {
-			fmt.Printf(",[")
-		}
-		for n, i := range p {
-			if n == 0 {
-				fmt.Printf("%v", i)
+	/*
+		for m, p := range proof {
+			if m == 0 {
+				fmt.Printf("[")
 			} else {
-				fmt.Printf(",%v", i)
+				fmt.Printf(",[")
 			}
+			for n, i := range p {
+				if n == 0 {
+					fmt.Printf("%v", i)
+				} else {
+					fmt.Printf(",%v", i)
+				}
+			}
+			fmt.Printf("]")
 		}
-		fmt.Printf("]")
-	}
-	fmt.Println()
+		fmt.Println()
+	*/
+	v.log.WithFields(logrus.Fields{"bytes": len(proof[2])}).Warn("Fraud proof size")
 	txOpts, err := v.ethContract.PrepareTxOptions(big.NewInt(0), big.NewInt(2), big.NewInt(2), v.privKey)
 	if err != nil {
 		return err

@@ -67,41 +67,11 @@ func main() {
 		logger.Fatal("Was not able to syncronize")
 	}
 	logger.Info("Successfully syncronized with on-chain data")
-	for i := 0; i < 2; i++ {
-		tx := optimisticrp.Transaction{Value: big.NewInt(1e+14), Gas: big.NewInt(1e+18), To: addrAccount2, From: addrAccount1}
+	for i := 0; i < aggregator.MAX_TRANSACTIONS_BATCH; i++ {
+		tx := optimisticrp.Transaction{Value: big.NewInt(1e+18), Gas: big.NewInt(1e+18), To: addrAccount2, From: addrAccount1}
 		err := myaggregator.ReceiveTransaction(tx)
 		if err != nil {
 			logger.Fatal(err)
 		}
 	}
-	for i := 0; i < aggregator.MAX_TRANSACTIONS_BATCH-2; i++ {
-		logger.Info("Generating random receivers address to increase the trie size")
-		tx := optimisticrp.Transaction{Value: big.NewInt(1e+14), Gas: big.NewInt(1e+18), To: randomAddress(), From: addrAccount1}
-		err := myaggregator.ReceiveTransaction(tx)
-		if err != nil {
-			logger.Fatal(err)
-		}
-	}
-	/*
-		proof, err := tr.NewProve(addrAccount2)
-		if err != nil {
-			logger.Fatal(err)
-		}
-		for m, p := range proof {
-			if m == 0 {
-				fmt.Printf("[")
-			} else {
-				fmt.Printf(",[")
-			}
-			for n, i := range p {
-				if n == 0 {
-					fmt.Printf("%v", i)
-				} else {
-					fmt.Printf(",%v", i)
-				}
-			}
-			fmt.Printf("]")
-		}
-		fmt.Println()
-	*/
 }

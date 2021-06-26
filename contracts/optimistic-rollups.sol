@@ -48,6 +48,11 @@ contract Optimistic_Rollups {
         _;
     }
     
+    modifier fraud_period() {
+        require (block.timestamp < last_batch_time + lock_time, "OPTIMISTIC_PERIOD");
+        _;
+    }
+    
     //Bonds msg.value for msg.sender to become and aggregator
     function bond() external payable {
         require(msg.value >= required_bond, "INSUFFICIENT_BOND");
@@ -100,7 +105,7 @@ contract Optimistic_Rollups {
     }
     
     //account_proof must contain a proof of the account balance for the previous stateRoot
-    function prove_fraud(bytes calldata _key, bytes calldata _value, bytes memory _proof, bytes32 _root, bytes calldata _lastBatch) external {
+    function prove_fraud(bytes calldata _key, bytes calldata _value, bytes memory _proof, bytes32 _root, bytes calldata _lastBatch) external fraud_period() {
         //Check proof
         require(_root == prev_stateRoot && stateRoot != prev_stateRoot, "NOT_VALID_PROOF");
         require(Lib_MerkleTrie.verifyInclusionProof(_key,_value,_proof,_root) == true, "INVALID_ACCOUNT_PROOF");
@@ -140,6 +145,12 @@ contract Optimistic_Rollups {
         emit Invalid_Proof(msg.sender);
 
         //if fraud is proved => change to the last apporved stateRoot and reward the prover
+    }
+    
+    function remaining_proof_time() view public returns (uint256) {
+        uint256 remaining = (last_batch_time + lock_time) - block.timestamp;
+        if (remaining < 0) return 0;
+        return remaining;
     }
 
 }

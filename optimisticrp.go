@@ -57,6 +57,12 @@ func (ot *OptimisticTrie) NewProve(address common.Address) ([][]byte, error) {
 	if len(fBytes) == 0 {
 		return nil, &AccountNotFound{address}
 	}
+	it := trie.NewIterator(ot.NodeIterator(nil))
+	accounts := 0
+	for it.Next() {
+		accounts += 1
+	}
+	//log.Printf("Number of accounts in Trie: %v\n", accounts)
 	proof := memorydb.New()
 	formatProof := [][]byte{}
 	if it := trie.NewIterator(ot.NodeIterator(address.Bytes())); it.Next() && bytes.Equal(address.Bytes(), it.Key) {

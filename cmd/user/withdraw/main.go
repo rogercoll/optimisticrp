@@ -65,6 +65,7 @@ func main() {
 	if err != nil {
 		logger.Fatal(err)
 	}
+	logger.WithFields(logrus.Fields{"bytes": len(proof[2])}).Warn("Withdraw proof size")
 	_, err = mybridge.Withdraw(txOpts, proof[0], proof[1], proof[2], proof[3])
 	if err != nil {
 		logger.Fatal(err)

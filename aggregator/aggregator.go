@@ -11,7 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const MAX_TRANSACTIONS_BATCH = 100
+const MAX_TRANSACTIONS_BATCH = 502
 
 type AggregatorNode struct {
 	transactions     []optimisticrp.Transaction

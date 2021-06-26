@@ -1,11 +1,14 @@
 package optimisticrp
 
 import (
+	"crypto/ecdsa"
+	"fmt"
 	"log"
 	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb/memorydb"
 	"github.com/ethereum/go-ethereum/trie"
 )
@@ -23,6 +26,19 @@ var (
 	acc5     = Account{Balance: new(big.Int).SetUint64(1e+18), Nonce: 5}
 )
 
+func randomAddress() common.Address {
+	privateKey, err := crypto.GenerateKey()
+	if err != nil {
+		log.Fatal(err)
+	}
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		log.Fatal("error casting public key to ECDSA")
+	}
+	return common.HexToAddress(crypto.PubkeyToAddress(*publicKeyECDSA).Hex())
+}
+
 func TestNewProve(t *testing.T) {
 	var (
 		diskdb = memorydb.New()
@@ -32,17 +48,57 @@ func TestNewProve(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	_ = tr.UpdateAccount(address1, acc1)
-	_ = tr.UpdateAccount(address2, acc2)
 	_ = tr.UpdateAccount(address3, acc3)
-	_ = tr.UpdateAccount(address4, acc4)
-	_ = tr.UpdateAccount(address5, acc5)
 	toSend, err := tr.NewProve(address3)
 	if err != nil {
 		t.Log(err)
 	}
-	if len(toSend[2]) == 0 {
-		t.Error("Proof data cannot be empty")
+	fmt.Printf("%v,%v\n", 1, len(toSend[2]))
+	_ = tr.UpdateAccount(randomAddress(), acc1)
+	toSend, err = tr.NewProve(address3)
+	if err != nil {
+		t.Log(err)
+	}
+	fmt.Printf("%v,%v\n", 2, len(toSend[2]))
+	_ = tr.UpdateAccount(randomAddress(), acc2)
+	toSend, err = tr.NewProve(address3)
+	if err != nil {
+		t.Log(err)
+	}
+	fmt.Printf("%v,%v\n", 3, len(toSend[2]))
+	_ = tr.UpdateAccount(randomAddress(), acc3)
+	toSend, err = tr.NewProve(address3)
+	if err != nil {
+		t.Log(err)
+	}
+	fmt.Printf("%v,%v\n", 4, len(toSend[2]))
+	_ = tr.UpdateAccount(randomAddress(), acc4)
+	toSend, err = tr.NewProve(address3)
+	if err != nil {
+		t.Log(err)
+	}
+	fmt.Printf("%v,%v\n", 5, len(toSend[2]))
+	for i := 5; i <= 100; i += 5 {
+		_ = tr.UpdateAccount(randomAddress(), acc1)
+		_ = tr.UpdateAccount(randomAddress(), acc2)
+		_ = tr.UpdateAccount(randomAddress(), acc3)
+		_ = tr.UpdateAccount(randomAddress(), acc4)
+		_ = tr.UpdateAccount(randomAddress(), acc5)
+		toSend, err := tr.NewProve(address3)
+		if err != nil {
+			t.Log(err)
+		}
+		fmt.Printf("%v,%v\n", i, len(toSend[2]))
+	}
+	for i := 200; i <= 10000; i += 100 {
+		for j := 0; j < 100; j++ {
+			_ = tr.UpdateAccount(randomAddress(), acc1)
+		}
+		toSend, err := tr.NewProve(address3)
+		if err != nil {
+			t.Log(err)
+		}
+		fmt.Printf("%v,%v\n", i, len(toSend[2]))
 	}
 }
 

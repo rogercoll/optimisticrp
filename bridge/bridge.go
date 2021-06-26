@@ -55,6 +55,7 @@ func (b *Bridge) NewBatch(batch optimisticrp.SolidityBatch, txOpts *bind.Transac
 	if err != nil {
 		return nil, err
 	}
+	b.log.WithFields(logrus.Fields{"Bytes": len(result)}).Warn("Batch size")
 	txresult, err := b.oriContract.NewBatch(txOpts, result)
 	if err != nil {
 		return nil, err
@@ -109,6 +110,14 @@ func (b *Bridge) Deposit(txOpts *bind.TransactOpts) (*types.Transaction, error) 
 	}
 	b.log.Info("Deposit to onChain smart contract done successfully")
 	return txresult, nil
+}
+
+func (b *Bridge) RemainingFraudPeriod() (*big.Int, error) {
+	remaining, err := b.oriContract.RemainingProofTime(nil)
+	if err != nil {
+		return nil, err
+	}
+	return remaining, nil
 }
 
 func (b *Bridge) IsStateRootValid(state common.Hash) (bool, error) {
