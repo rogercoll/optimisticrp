@@ -18,8 +18,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var addrAccount1 = common.HexToAddress("0x9E8C3211bb57621A3FfA40639b5DDf79807bAdc9")
-var addrAccount2 = common.HexToAddress("0x9185eAE1c5AD845137AaDf34a955e1D676fE421B")
+var addrAccount1 = common.HexToAddress(cmd.AggregatorPub)
+var addrAccount2 = common.HexToAddress(cmd.WithdrawerPub)
 
 func randomAddress() common.Address {
 	privateKey, err := crypto.GenerateKey()
@@ -67,14 +67,14 @@ func main() {
 		logger.Fatal("Was not able to syncronize")
 	}
 	logger.Info("Successfully syncronized with on-chain data")
-	for i := 0; i < 2; i++ {
-		tx := optimisticrp.Transaction{Value: big.NewInt(1e+14), Gas: big.NewInt(1e+18), To: addrAccount2, From: addrAccount1}
+	for i := 0; i < 1; i++ {
+		tx := optimisticrp.Transaction{Value: big.NewInt(1e+18), Gas: big.NewInt(1e+18), To: addrAccount2, From: addrAccount1}
 		err := myaggregator.ReceiveTransaction(tx)
 		if err != nil {
 			logger.Fatal(err)
 		}
 	}
-	for i := 0; i < aggregator.MAX_TRANSACTIONS_BATCH-2; i++ {
+	for i := 0; i < aggregator.MAX_TRANSACTIONS_BATCH-1; i++ {
 		logger.Info("Generating random receivers address to increase the trie size")
 		tx := optimisticrp.Transaction{Value: big.NewInt(1e+14), Gas: big.NewInt(1e+18), To: randomAddress(), From: addrAccount1}
 		err := myaggregator.ReceiveTransaction(tx)

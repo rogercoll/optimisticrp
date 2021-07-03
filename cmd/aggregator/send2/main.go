@@ -18,8 +18,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var addrAccount1 = common.HexToAddress("0x9E8C3211bb57621A3FfA40639b5DDf79807bAdc9")
-var addrAccount2 = common.HexToAddress("0x9185eAE1c5AD845137AaDf34a955e1D676fE421B")
+var addrAccount1 = common.HexToAddress(cmd.AggregatorPub)
+var addrAccount2 = common.HexToAddress(cmd.WithdrawerPub)
 
 func randomAddress() common.Address {
 	privateKey, err := crypto.GenerateKey()

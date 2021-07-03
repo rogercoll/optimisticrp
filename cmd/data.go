@@ -1,6 +1,12 @@
 package cmd
 
-const ContractAddr = "0xf339DA6d552b8489ae172213005F067190e6b6D1"
-const AggregatorPriv = "8462df444c03c337cb1a36da106d35c3765f9d423e6c9a08b88432982b3c64d5"
-const ChallengerPriv = "f99f08ed8bf9e51e1f08700cf782a86b43eab54be5f6d0911097e4f300b09e2a"
-const WithdrawerPriv = "482254ce62c1473ccbf354bf33e08d71ff09dd2859e4fb8ae08d228fb8b727a5"
+const ContractAddr = "0x8A5a6C65B99b019f2b23e2Fad8CbD46dDAddFbDA"
+
+const AggregatorPub = "0x527DbDA6aF11AE46E9236EaA78fbd5cBCBc53e53"
+const AggregatorPriv = "1a973bd661a29da2a124942e9be644ff2983fd61bf68b23ee8612b9ab8591345"
+
+const ChallengerPub = "0xb4f3080D22929800B020a48A0CE77B8505320EEA"
+const ChallengerPriv = "68825d26ad5e3aac6250b43613775247476bdf8a1370755f5a9d27d46a7e386c"
+
+const WithdrawerPub = "0x1CAA4e78a389d067304fBCaE364c9162947aF250"
+const WithdrawerPriv = "2437665e5646b886030784736b8ac65a70eddc865201ca09e682fa1d295df210"
